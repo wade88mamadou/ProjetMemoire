@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Projet Django-React
 
 Ce projet est composé d'un backend Django et d'un frontend React qui communiquent via une API REST.
@@ -71,3 +72,7 @@ Le frontend sera accessible sur http://localhost:3000
 ## Configuration CORS
 
 Le backend est configuré pour accepter les requêtes du frontend React (localhost:3000). 
+=======
+# Dashboard
+DashboardDjangoReact
+>>>>>>> 68c20743f62c9d2e25ba6f17164bfcfa2046a503
