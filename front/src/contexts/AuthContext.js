@@ -1,0 +1,158 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { authService } from '../services/api';
+
+const AuthContext = createContext();
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Vérifier si l'utilisateur est connecté au chargement de l'app
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+    
+    if (token && savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+        // Vérifier si le token est toujours valide
+        authService.getUserDetails()
+          .then(response => {
+            setUser(response.data);
+            localStorage.setItem('user', JSON.stringify(response.data));
+          })
+          .catch(() => {
+            // Token invalide, déconnecter l'utilisateur
+            logout();
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      } catch (error) {
+        console.error('Erreur lors du parsing des données utilisateur:', error);
+        logout();
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fonction de connexion
+  const login = async (credentials) => {
+    try {
+      setError(null);
+      const response = await authService.login(credentials);
+      
+      if (response.data.success) {
+        const { token, user: userData } = response.data;
+        
+        // Stocker le token et les données utilisateur
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('role', userData.role);
+        
+        setUser(userData);
+        return { success: true, user: userData };
+      } else {
+        setError('Erreur de connexion');
+        return { success: false, error: 'Erreur de connexion' };
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 
+                          error.response?.data?.error || 
+                          'Erreur de connexion';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  // Fonction de déconnexion
+  const logout = async () => {
+    try {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (refreshToken) {
+        await authService.logout(refreshToken);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    } finally {
+      // Nettoyer le localStorage
+      localStorage.removeItem('token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('role');
+      
+      setUser(null);
+      setError(null);
+    }
+  };
+
+  // Fonction pour changer le mot de passe
+  const changePassword = async (passwords) => {
+    try {
+      setError(null);
+      await authService.changePassword(passwords);
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Erreur lors du changement de mot de passe';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  // Fonction pour vérifier les permissions selon le rôle
+  const hasRole = (requiredRole) => {
+    if (!user) return false;
+    
+    // Logique de permissions selon les rôles du backend
+    switch (requiredRole) {
+      case 'administrateur':
+        return user.role === 'administrateur' || user.is_superuser;
+      case 'medecin':
+        return user.role === 'medecin' || user.role === 'administrateur' || user.is_superuser;
+      case 'user_simple':
+        return user.role === 'user_simple' || user.role === 'medecin' || user.role === 'administrateur' || user.is_superuser;
+      default:
+        return false;
+    }
+  };
+
+  // Fonction pour vérifier si l'utilisateur est admin
+  const isAdmin = () => {
+    return user && (user.role === 'administrateur' || user.is_superuser);
+  };
+
+  // Fonction pour vérifier si l'utilisateur est médecin
+  const isMedecin = () => {
+    return user && (user.role === 'medecin' || user.role === 'administrateur' || user.is_superuser);
+  };
+
+  const value = {
+    user,
+    loading,
+    error,
+    login,
+    logout,
+    changePassword,
+    hasRole,
+    isAdmin,
+    isMedecin,
+    isAuthenticated: !!user,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}; 

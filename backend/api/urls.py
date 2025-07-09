@@ -22,6 +22,9 @@ router.register(r'alimentations', views.AlimentationViewSet)
 router.register(r'acces', views.AccesViewSet)
 
 urlpatterns = [
+    # Test de connexion
+    path('test-connexion/', views.test_connexion, name='test-connexion'),
+    
     # URLs d'authentification
     path('auth/login/', views.LoginView.as_view(), name='login'),
     path('auth/logout/', views.LogoutView.as_view(), name='logout'),

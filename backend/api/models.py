@@ -169,3 +169,4 @@ class Acces(models.Model):
     dateAcces = models.DateField()
     utilisateur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE)
     rapport = models.ForeignKey(Rapport, on_delete=models.CASCADE, null=True, blank=True)
+
