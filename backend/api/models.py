@@ -1,56 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, AbstractUser
+from django.utils import timezone
 
-# Profession
-class Profession(models.Model):
-    nomProfession = models.CharField(max_length=255)
-    typeProfession = models.CharField(max_length=255, blank=True, null=True)
-    environnementTravail = models.CharField(max_length=255, blank=True, null=True)
-    travailleChezSoi = models.CharField(max_length=10, blank=True, null=True)
-    travailleDansEmploi = models.CharField(max_length=10, blank=True, null=True)
-    revenu = models.FloatField(blank=True, null=True)
-    freqRevenu = models.CharField(max_length=255, blank=True, null=True)
-
-# Logement
-class Logement(models.Model):
-    typeLogement = models.CharField(max_length=255)
-    nombrePersonnesFoyer = models.IntegerField()
-    multiMaisonsCouverts = models.CharField(max_length=10, blank=True, null=True)
-    sousMaisonCouverts = models.CharField(max_length=10, blank=True, null=True)
-    toilettesInterieures = models.CharField(max_length=10, blank=True, null=True)
-
-# Résidence
-class Residence(models.Model):
-    pays = models.CharField(max_length=255)
-    ville = models.CharField(max_length=255)
-    quartier = models.CharField(max_length=255)
-    adresseComplete = models.CharField(max_length=500)
-
-# Comportement
-class Comportement(models.Model):
-    viePrivee = models.CharField(max_length=255, blank=True, null=True)
-    mangeAilleursMain = models.CharField(max_length=255, blank=True, null=True)
-    vieAvecAussiEnfantDeManger = models.CharField(max_length=255, blank=True, null=True)
-    utiliseSalon = models.CharField(max_length=255, blank=True, null=True)
-    laveLesMainsEnfants = models.CharField(max_length=255, blank=True, null=True)
-    utiliseSallyHydroalcoolique = models.CharField(max_length=255, blank=True, null=True)
-
-# Patient
-class Patient(models.Model):
-    nom = models.CharField(max_length=255)
-    prenom = models.CharField(max_length=255)
-    dateNaissance = models.DateField()
-    sexe = models.CharField(max_length=10)
-    poids = models.FloatField(blank=True, null=True)
-    taille = models.FloatField(blank=True, null=True)
-    lieuNaissance = models.CharField(max_length=255, blank=True, null=True)
-    nationalite = models.CharField(max_length=255, blank=True, null=True)
-    niveauEtude = models.CharField(max_length=255, blank=True, null=True)
-    etablissement = models.CharField(max_length=255, blank=True, null=True)
-    profession = models.ForeignKey(Profession, on_delete=models.SET_NULL, null=True, blank=True)
-    logement = models.OneToOneField(Logement, on_delete=models.SET_NULL, null=True, blank=True)
-    residence = models.OneToOneField(Residence, on_delete=models.SET_NULL, null=True, blank=True)
-    comportement = models.OneToOneField(Comportement, on_delete=models.SET_NULL, null=True, blank=True)
 
 # Utilisateur (héritage)
 class Utilisateur(AbstractUser):
@@ -67,13 +18,14 @@ class Utilisateur(AbstractUser):
         default='user_simple'
     )
     statut = models.CharField(max_length=50, blank=True, null=True)
+    medecin = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, limit_choices_to={'role': 'MEDECIN'}, related_name='users_simples')
     
     class Meta:
         verbose_name = "Utilisateur"
         verbose_name_plural = "Utilisateurs"
     
     def __str__(self):
-        return f"{self.username} ({self.get_role_display()})"
+        return f"{self.username}"
     
     @property
     def is_admin(self):
@@ -87,86 +39,182 @@ class Utilisateur(AbstractUser):
     def is_user_simple(self):
         return self.role == 'user_simple'
 
-# Dossier Médical
+class Profession(models.Model):
+    idProfession = models.AutoField(primary_key=True)
+    nomProfession = models.CharField(max_length=250)
+    typeProfession = models.CharField(max_length=250)
+    environnementTravail = models.CharField(max_length=250)
+    travailleDehors = models.CharField(max_length=250)
+    travailleSansEmploi = models.CharField(max_length=250)
+    situationSansEmploi = models.CharField(max_length=250)
+    revenu = models.CharField(max_length=250)
+    freqRevenu = models.CharField(max_length=250)
+
+class Residence(models.Model):
+    idResidence = models.AutoField(primary_key=True)
+    pays = models.CharField(max_length=250)
+    ville = models.CharField(max_length=250)
+    quartier = models.CharField(max_length=250)
+    adresseComplete = models.CharField(max_length=255)
+    groupe = models.CharField(max_length=100, null=True, blank=True, help_text="Groupe de résidence (Urban, Semi-urban, Europe, etc.)")
+
+class Comportement(models.Model):
+    idComportement = models.AutoField(primary_key=True)
+    lieuRepas = models.CharField(max_length=250, null=True, blank=True)
+    mangeAvecLesMains = models.CharField(max_length=250, null=True, blank=True)
+    laveLesMainsAvantDeManger = models.CharField(max_length=250, null=True, blank=True)
+    utiliseDuSavon = models.CharField(max_length=250, null=True, blank=True)
+    laveLesMainsDesEnfants = models.CharField(max_length=250, null=True, blank=True)
+    utiliseGelHydroalcoolique = models.CharField(max_length=250, null=True, blank=True)
+
+class Logement(models.Model):
+    idLogement = models.AutoField(primary_key=True)
+    typeLogement = models.CharField(max_length=250)
+    nombrePersonnesFoyer = models.IntegerField()
+    nbMursMaisonCouverts = models.IntegerField()
+    nbSolsMaisonCouverts = models.IntegerField()
+    nbToilettesMaison = models.IntegerField()
+    toilettesInterieures = models.BooleanField()
+
+class Alimentation(models.Model):
+    idAlimentation = models.AutoField(primary_key=True)
+    typeRepas = models.CharField(max_length=250)
+
+class Patient(models.Model):
+    idPatient = models.AutoField(primary_key=True)
+    id_code = models.CharField(max_length=250, unique=True, null=True, blank=True)
+    sexe = models.BooleanField(null=True, blank=True)
+    poids = models.FloatField(null=True, blank=True)
+    taille = models.FloatField(null=True, blank=True)
+    lieuNaissance = models.CharField(max_length=250, null=True, blank=True)
+    niveauEtude = models.CharField(max_length=250, null=True, blank=True)
+    profession = models.ForeignKey(Profession, on_delete=models.SET_NULL, null=True)
+    comportement = models.ForeignKey(Comportement, on_delete=models.SET_NULL, null=True)
+    logement = models.ForeignKey(Logement, on_delete=models.SET_NULL, null=True)
+    alimentation = models.ForeignKey(Alimentation, on_delete=models.SET_NULL, null=True)
+    residence = models.ForeignKey(Residence, on_delete=models.SET_NULL, null=True)
+
+# ===================== DOSSIER MÉDICAL =====================
+
 class DossierMedical(models.Model):
+    idDossier = models.AutoField(primary_key=True)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True)
-    nomDossier = models.CharField(max_length=255)
-    dateCreation = models.DateField(auto_now_add=True)
-    commentaireGeneral = models.TextField(blank=True, null=True)
-    statut = models.CharField(max_length=50, default='Actif')
+    dateCreation = models.DateField()
+    commentaireGeneral = models.TextField()
 
-# Rapport
-class Rapport(models.Model):
+class Analyse(models.Model):
+    idAnalyse = models.AutoField(primary_key=True)
     dossier = models.ForeignKey(DossierMedical, on_delete=models.CASCADE)
-    dateRapport = models.DateField(auto_now_add=True)
-    titre = models.CharField(max_length=255)
-    statut = models.CharField(max_length=50, default='Brouillon')
-    contenu = models.TextField(blank=True, null=True)
-    statutConformite = models.CharField(max_length=50, default='Non évalué')
-    niveauConformite = models.IntegerField(blank=True, null=True)
+    typeAnalyse = models.CharField(max_length=250)
+    dateAnalyse = models.DateField()
 
-# Vaccin
-class Vaccin(models.Model):
-    nomVaccin = models.CharField(max_length=255)
-    typeVaccin = models.CharField(max_length=255)
-    dateVaccination = models.DateField()
-    dose = models.CharField(max_length=255)
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+class ResultatAnalyse(models.Model):
+    idResultatAnalyse = models.AutoField(primary_key=True)
+    analyse = models.OneToOneField(Analyse, on_delete=models.CASCADE)
+    glycemie = models.FloatField()
+    cholesterol = models.FloatField()
+    triglyceride = models.FloatField()
+    hdl = models.FloatField()
+    ldl = models.FloatField()
+    creatinine = models.FloatField()
+    uree = models.FloatField()
+    proteinurie = models.FloatField()
 
-# Infection
-class Infection(models.Model):
-    nomInfection = models.CharField(max_length=255)
-    typeInfection = models.CharField(max_length=255)
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-
-# Règle de conformité
-class RegleConformite(models.Model):
-    nomRegle = models.CharField(max_length=255)
-    description = models.TextField()
-    typeRegle = models.CharField(max_length=255)
-    niveauCritique = models.CharField(max_length=50)
-
-# Paramètre de conformité
-class ParametreConformite(models.Model):
-    nom = models.CharField(max_length=255)
-    seuilMin = models.FloatField()
-    seuilMax = models.FloatField()
-    unite = models.CharField(max_length=50)
-    regle = models.ForeignKey(RegleConformite, on_delete=models.SET_NULL, null=True, blank=True)
-
-# Alerte
 class Alerte(models.Model):
-    typeAlerte = models.CharField(max_length=255)
+    idAlerte = models.AutoField(primary_key=True)
+    dossier = models.ForeignKey(DossierMedical, on_delete=models.CASCADE, null=True, blank=True)
+    typeAlerte = models.CharField(max_length=250)
     message = models.TextField()
     dateAlerte = models.DateField()
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    gravite = models.CharField(max_length=50, default='info')  # info, warning, critique
+    notifie_cdp = models.BooleanField(default=False)
+    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True)
+    donnees_concernees = models.TextField(blank=True, null=True)
 
-# Analyse
-class Analyse(models.Model):
-    typeAnalyse = models.CharField(max_length=255)
-    dateAnalyse = models.DateField()
+class Vaccin(models.Model):
+    idVaccin = models.AutoField(primary_key=True)
     dossier = models.ForeignKey(DossierMedical, on_delete=models.CASCADE)
+    nomVaccin = models.CharField(max_length=250, null=True, blank=True)
+    typeVaccination = models.CharField(max_length=250, null=True, blank=True)
+    dose = models.IntegerField(null=True, blank=True)
 
-# Résultat analyse
-class ResultatAnalyse(models.Model):
-    analyse = models.ForeignKey(Analyse, on_delete=models.CASCADE)
-    dateAnalyse = models.DateField()
-    glycemie = models.FloatField(blank=True, null=True)
-    hemoglobine = models.FloatField(blank=True, null=True)
-    leucocytes = models.FloatField(blank=True, null=True)
-    lymphocytes = models.FloatField(blank=True, null=True)
-    neutrophiles = models.FloatField(blank=True, null=True)
+class Infection(models.Model):
+    idInfection = models.AutoField(primary_key=True)
+    dossier = models.ForeignKey(DossierMedical, on_delete=models.CASCADE)
+    nomInfection = models.CharField(max_length=250, null=True, blank=True)
+    typeInfection = models.CharField(max_length=250, null=True, blank=True)
 
-# Alimentation
-class Alimentation(models.Model):
-    typeRepas = models.CharField(max_length=255)
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+# ===================== CONFORMITÉ & RAPPORTS =====================
 
-# Accès
-class Acces(models.Model):
-    typeAcces = models.CharField(max_length=255)
+class RegleConformite(models.Model):
+    idRegle = models.AutoField(primary_key=True)
+    nomRegle = models.CharField(max_length=250)
+    description = models.TextField()
+    typeRegle = models.CharField(max_length=250)
+    niveauCritique = models.IntegerField()
+    is_active = models.BooleanField(default=True)
+
+class Acces(models.Model): 
+    typeAcces = models.CharField(max_length=250)
     dateAcces = models.DateField()
-    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE)
-    rapport = models.ForeignKey(Rapport, on_delete=models.CASCADE, null=True, blank=True)
+    regle = models.ForeignKey(RegleConformite, on_delete=models.CASCADE, null=True, blank=True)
+    utilisateur = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True)
+    donnees_concernees = models.TextField(blank=True, null=True)
 
+class ParametreConformite(models.Model):
+    idParametre = models.AutoField(primary_key=True)
+    nom = models.CharField(max_length=250)
+    seuilMin = models.IntegerField()
+    seuilMax = models.IntegerField()
+    unite = models.CharField(max_length=50)
+    regle = models.ForeignKey('RegleConformite', on_delete=models.CASCADE, related_name='parametres', null=True, blank=True)
+
+class Rapport(models.Model):
+    idRapport = models.AutoField(primary_key=True)
+    dateRapport = models.DateField()
+    titre = models.CharField(max_length=250)
+    contenu = models.TextField()
+    statutConformite = models.CharField(max_length=250)
+    niveauConformite = models.IntegerField()
+
+# ===================== DEMANDES D'EXPORTATION =====================
+
+class DemandeExportation(models.Model):
+    STATUT_CHOICES = [
+        ('EN_ATTENTE', 'En attente'),
+        ('APPROUVEE', 'Approuvée'),
+        ('REFUSEE', 'Refusée'),
+    ]
+    
+    id = models.AutoField(primary_key=True)
+    demandeur = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name='demandes_exportation')
+    medecin = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name='demandes_a_traiter', limit_choices_to={'role': 'MEDECIN'})
+    date_demande = models.DateTimeField(auto_now_add=True)
+    date_traitement = models.DateTimeField(null=True, blank=True)
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='EN_ATTENTE')
+    commentaire_medecin = models.TextField(blank=True, null=True)
+    donnees_autorisees = models.JSONField(default=dict, help_text="Types de données autorisées pour l'export")
+    utilisee = models.BooleanField(default=False, help_text="Indique si la demande approuvée a déjà été utilisée pour exporter")
+    
+    class Meta:
+        verbose_name = "Demande d'exportation"
+        verbose_name_plural = "Demandes d'exportation"
+        ordering = ['-date_demande']
+    
+    def __str__(self):
+        return f"Demande de {self.demandeur.username if self.demandeur else 'Unknown'} - {self.statut}"
+    
+    def save(self, *args, **kwargs):
+        # Si le statut change vers APPROUVEE ou REFUSEE, mettre à jour date_traitement
+        if self.pk:
+            try:
+                old_instance = DemandeExportation.objects.get(pk=self.pk)
+                if old_instance.statut == 'EN_ATTENTE' and self.statut in ['APPROUVEE', 'REFUSEE']:
+                    self.date_traitement = timezone.now()
+            except DemandeExportation.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
+   
+    #def __str__(self):
+      #  return self.id_code

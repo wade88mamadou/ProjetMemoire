@@ -9,9 +9,20 @@ const LoginPage = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showInactiveModal, setShowInactiveModal] = useState(false);
   
   const { login, error } = useAuth();
   const navigate = useNavigate();
+
+  // Ajout du log pour debug
+  console.log('Erreur reçue dans LoginPage:', error);
+
+  // Afficher la modal si erreur inactif
+  React.useEffect(() => {
+    if (error && typeof error === 'object' && error.type === 'account_disabled') {
+      setShowInactiveModal(true);
+    }
+  }, [error]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,17 +42,24 @@ const LoginPage = () => {
       if (result.success) {
         // Redirection selon le rôle
         const role = result.user.role;
+        console.log('Rôle de l\'utilisateur:', role);
+        console.log('Données utilisateur complètes:', result.user);
+        
         switch (role) {
-          case 'administrateur':
+          case 'admin':
+            console.log('Redirection vers dashboard admin');
             navigate('/admin/dashboard');
             break;
           case 'medecin':
+            console.log('Redirection vers dashboard médecin');
             navigate('/medecin/dashboard');
             break;
           case 'user_simple':
+            console.log('Redirection vers dashboard utilisateur');
             navigate('/user/dashboard');
             break;
           default:
+            console.log('Rôle non reconnu, redirection par défaut');
             navigate('/dashboard');
         }
       }
@@ -69,9 +87,14 @@ const LoginPage = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="bg-white py-8 px-6 shadow-lg rounded-lg">
             {/* Message d'erreur */}
-            {error && (
-              <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
-                {error}
+            {error && !(typeof error === 'object' && error.type === 'account_disabled') && (
+              <div className={`mb-4 px-4 py-3 rounded-md bg-red-50 border border-red-200 text-red-700`}>
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {typeof error === 'string' ? error : 'Erreur de connexion'}
+                </div>
               </div>
             )}
 
@@ -179,6 +202,25 @@ const LoginPage = () => {
           </div>
         </div>
       </div>
+      {showInactiveModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+          <div className="bg-white p-6 rounded shadow-lg max-w-sm w-full">
+            <div className="flex items-center mb-3">
+              <svg className="w-6 h-6 text-orange-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <h2 className="text-lg font-bold text-orange-700">Impossible de te connecter, vous êtes inactif</h2>
+            </div>
+            <p className="mb-4 text-gray-700">Votre compte a été désactivé par l'administrateur.<br/>Veuillez contacter votre administrateur pour réactiver votre compte.</p>
+            <button
+              onClick={() => setShowInactiveModal(false)}
+              className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium w-full"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

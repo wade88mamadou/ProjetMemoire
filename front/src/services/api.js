@@ -6,9 +6,6 @@ const API_BASE_URL = 'http://localhost:8000/api';
 // Créer une instance axios avec la configuration de base
 const api = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Intercepteur pour ajouter le token d'authentification aux requêtes
@@ -18,6 +15,17 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Ajouter le Content-Type approprié si pas déjà défini
+    if (!config.headers['Content-Type']) {
+      if (config.data instanceof FormData) {
+        // Pour FormData, ne pas définir Content-Type (axios le fera automatiquement)
+        delete config.headers['Content-Type'];
+      } else {
+        config.headers['Content-Type'] = 'application/json';
+      }
+    }
+    
     return config;
   },
   (error) => {
@@ -83,6 +91,8 @@ export const patientService = {
   createPatient: (patientData) => api.post('/patients/', patientData),
   updatePatient: (id, patientData) => api.put(`/patients/${id}/`, patientData),
   deletePatient: (id) => api.delete(`/patients/${id}/`),
+  // Statistiques spécifiques au médecin
+  getMesPatients: () => api.get('/mes-patients/'),
 };
 
 // Service pour les dossiers médicaux
@@ -92,6 +102,8 @@ export const dossierMedicalService = {
   createDossier: (dossierData) => api.post('/dossiers-medicaux/', dossierData),
   updateDossier: (id, dossierData) => api.put(`/dossiers-medicaux/${id}/`, dossierData),
   deleteDossier: (id) => api.delete(`/dossiers-medicaux/${id}/`),
+  // Statistiques spécifiques au médecin
+  getMesDossiers: () => api.get('/mes-dossiers-medicaux/'),
 };
 
 // Service pour les rapports
@@ -101,6 +113,8 @@ export const rapportService = {
   createRapport: (rapportData) => api.post('/rapports/', rapportData),
   updateRapport: (id, rapportData) => api.put(`/rapports/${id}/`, rapportData),
   deleteRapport: (id) => api.delete(`/rapports/${id}/`),
+  // Statistiques spécifiques au médecin
+  getMesRapports: () => api.get('/mes-rapports/'),
 };
 
 // Service pour les alertes
@@ -110,6 +124,102 @@ export const alerteService = {
   createAlerte: (alerteData) => api.post('/alertes/', alerteData),
   updateAlerte: (id, alerteData) => api.put(`/alertes/${id}/`, alerteData),
   deleteAlerte: (id) => api.delete(`/alertes/${id}/`),
+};
+
+// Service pour l'importation CSV
+export const importCSV = (formData) => {
+  return api.post('/import-csv/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }).then(response => response.data);
+};
+
+// === DEMANDES D'EXPORTATION ===
+
+export const exportationService = {
+  // User simple : créer une demande
+  creerDemande: (data, token) =>
+    api.post('/demandes-exportation/', data, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  // User simple : lister ses demandes
+  mesDemandes: (token) =>
+    api.get('/mes-demandes-exportation/', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  // Médecin : lister les demandes à traiter
+  demandesATraiter: (token) =>
+    api.get('/demandes-a-traiter/', {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+
+  // Médecin : traiter une demande (approuver/refuser)
+  traiterDemande: (demandeId, data, token) =>
+    api.put(`/traiter-demande-exportation/${demandeId}/`, data, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
+};
+
+// Statistiques des patients par maladie
+export const getPatientsParMaladie = async () => {
+  try {
+    const response = await api.get('/stats/patients-par-maladie/');
+    return response.data;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des statistiques par maladie:', error);
+    throw error;
+  }
+};
+
+// Récupérer les alertes critiques
+export const getAlertesCritiques = async () => {
+  try {
+    const response = await api.get('/alertes-critiques/');
+    return response.data;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des alertes critiques:', error);
+    throw error;
+  }
+};
+
+// Service pour les règles de conformité
+export const regleConformiteService = {
+  getRegles: () => api.get('/regles-conformite/'),
+  getRegle: (id) => api.get(`/regles-conformite/${id}/`),
+  createRegle: (data) => api.post('/regles-conformite/', data),
+  updateRegle: (id, data) => api.put(`/regles-conformite/${id}/`, data),
+  deleteRegle: (id) => api.delete(`/regles-conformite/${id}/`),
+};
+
+// Service pour les paramètres/seuils de conformité
+export const parametreConformiteService = {
+  getParametres: () => api.get('/parametres-conformite/'),
+  getParametre: (id) => api.get(`/parametres-conformite/${id}/`),
+  createParametre: (data) => api.post('/parametres-conformite/', data),
+  updateParametre: (id, data) => api.put(`/parametres-conformite/${id}/`, data),
+  deleteParametre: (id) => api.delete(`/parametres-conformite/${id}/`),
+};
+
+// Service pour l'audit des accès
+export const accesService = {
+  getAcces: async () => {
+    const response = await api.get('/acces/');
+    // Django REST Framework renvoie souvent les données dans response.data.results
+    // ou directement dans response.data selon la configuration
+    return {
+      data: Array.isArray(response.data) ? response.data : (response.data.results || response.data || [])
+    };
+  },
+  getAccesById: (id) => api.get(`/acces/${id}/`),
+  // Ajoute d'autres méthodes si besoin (filtrage, suppression, etc.)
+};
+
+export const resultatAnalyseService = {
+  getResultats: () => api.get('/resultats-analyse/'),
+  getResultat: (id) => api.get(`/resultats-analyse/${id}/`)
 };
 
 export default api; 

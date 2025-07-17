@@ -68,10 +68,28 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: 'Erreur de connexion' };
       }
     } catch (error) {
+      // Gestion spéciale pour les comptes désactivés
+      if (error.response?.status === 403 && error.response?.data?.code === 'ACCOUNT_DISABLED') {
+        const errorData = error.response.data;
+        const inactiveError = {
+          type: 'account_disabled',
+          title: errorData.error,
+          message: errorData.message,
+          code: errorData.code
+        };
+        setError(inactiveError);
+        return { 
+          success: false, 
+          error: errorData.message,
+          errorType: 'account_disabled'
+        };
+      }
+      
+      // Toujours transmettre une string si ce n'est pas un compte inactif
       const errorMessage = error.response?.data?.message || 
                           error.response?.data?.error || 
                           'Erreur de connexion';
-      setError(errorMessage);
+      setError(typeof errorMessage === 'string' ? errorMessage : 'Erreur de connexion');
       return { success: false, error: errorMessage };
     }
   };
@@ -116,12 +134,12 @@ export const AuthProvider = ({ children }) => {
     
     // Logique de permissions selon les rôles du backend
     switch (requiredRole) {
-      case 'administrateur':
-        return user.role === 'administrateur' || user.is_superuser;
-      case 'medecin':
-        return user.role === 'medecin' || user.role === 'administrateur' || user.is_superuser;
+      case 'ADMIN':
+        return user.role === 'ADMIN' || user.is_superuser;
+      case 'MEDECIN':
+        return user.role === 'MEDECIN' || user.role === 'ADMIN' || user.is_superuser;
       case 'user_simple':
-        return user.role === 'user_simple' || user.role === 'medecin' || user.role === 'administrateur' || user.is_superuser;
+        return user.role === 'user_simple' || user.role === 'MEDECIN' || user.role === 'ADMIN' || user.is_superuser;
       default:
         return false;
     }
@@ -129,12 +147,12 @@ export const AuthProvider = ({ children }) => {
 
   // Fonction pour vérifier si l'utilisateur est admin
   const isAdmin = () => {
-    return user && (user.role === 'administrateur' || user.is_superuser);
+    return user && (user.role === 'ADMIN' || user.is_superuser);
   };
 
   // Fonction pour vérifier si l'utilisateur est médecin
   const isMedecin = () => {
-    return user && (user.role === 'medecin' || user.role === 'administrateur' || user.is_superuser);
+    return user && (user.role === 'MEDECIN' || user.role === 'ADMIN' || user.is_superuser);
   };
 
   const value = {
