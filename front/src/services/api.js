@@ -56,14 +56,22 @@ export const authService = {
   // Connexion utilisateur
   login: (credentials) => api.post('/auth/login/', credentials),
   
-  // Déconnexion
+  // Déconnexion utilisateur
   logout: (refreshToken) => api.post('/auth/logout/', { refresh_token: refreshToken }),
   
-  // Récupérer les détails de l'utilisateur connecté
+  // Obtenir les détails de l'utilisateur connecté
   getUserDetails: () => api.get('/auth/user/'),
   
   // Changer le mot de passe
   changePassword: (passwords) => api.post('/auth/change-password/', passwords),
+  
+  // Réinitialisation simple de mot de passe (ancienne méthode, à garder pour compatibilité)
+  simplePasswordReset: (data) => api.post('/auth/admin-reset-password/', data),
+
+  // Nouvelle méthode : étape 1 - vérification username uniquement
+  verifyUsername: (data) => api.post('/auth/verify-username/', data).then(res => res.data),
+  // Nouvelle méthode : étape 2 - reset avec token
+  simplePasswordResetWithToken: (data) => api.post('/auth/reset-password-token/', data).then(res => res.data),
 };
 
 // Service pour les utilisateurs (admin seulement)

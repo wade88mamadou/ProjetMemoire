@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { accesService } from '../services/api';
 
+const formatDateTime = (dateString) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+    timeZoneName: 'short',
+  });
+};
+
 const AuditAcces = () => {
   const [acces, setAcces] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,10 +64,10 @@ const AuditAcces = () => {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {acces.map((a) => (
                 <tr key={a.id || a.idAcces}>
-                  <td className="px-4 py-2">{a.dateAcces}</td>
-                  <td className="px-4 py-2">{a.utilisateur || '-'}</td>
+                  <td className="px-4 py-2">{formatDateTime(a.dateAcces)}</td>
+                  <td className="px-4 py-2">{a.utilisateur ? a.utilisateur.username : '-'}</td>
                   <td className="px-4 py-2">{a.typeAcces}</td>
-                  <td className="px-4 py-2">{a.regle ? (a.regle.nomRegle || a.regle) : '-'}</td>
+                  <td className="px-4 py-2">{a.regle && a.regle.nomRegle ? a.regle.nomRegle : '-'}</td>
                   <td className="px-4 py-2">{a.donnees_concernees || '-'}</td>
                 </tr>
               ))}

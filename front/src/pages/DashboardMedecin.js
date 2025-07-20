@@ -802,7 +802,7 @@ const DashboardMedecin = () => {
       chartLayout = { title: chartTitle, xaxis: { title: 'Groupe' }, yaxis: { title: 'Âge moyen' }, height: 400 };
     }
     // --- FIN bloc statistiques par maladie ---
-        return (
+  return (
           <div className="space-y-6">
         <DashboardCards />
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Tableau de bord</h2>
@@ -857,7 +857,7 @@ const DashboardMedecin = () => {
             config={{ responsive: true }}
             style={{ width: '100%' }}
           />
-        </div>
+                  </div>
 
             {/* Tableau détaillé des infections */}
         {/* {maladieStats && maladieStats.infections && maladieStats.infections.length > 0 && (
@@ -878,8 +878,8 @@ const DashboardMedecin = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                           Pourcentage
                         </th>
-                      </tr>
-                    </thead>
+                    </tr>
+                  </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {maladieStats.infections.map((infection, index) => {
                         const percentage = ((infection.nombre_patients / maladieStats.total_patients) * 100).toFixed(1);
@@ -893,14 +893,14 @@ const DashboardMedecin = () => {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                               {percentage}%
-                            </td>
-                          </tr>
+                        </td>
+                      </tr>
                         );
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                  </tbody>
+                </table>
+          </div>
+        </div>
         )} */}
           </div>
         );
@@ -910,7 +910,7 @@ const DashboardMedecin = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        </div>
+      </div>
     );
   }
 
@@ -923,13 +923,16 @@ const DashboardMedecin = () => {
             {/* Logo */}
             <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
               {sidebarOpen && (
-                <LogoHeader role="Médecin" />
+                <div className="flex items-center gap-2 flex-shrink-0 pl-0">
+                <LogoHeader />
+                <span className="ml-2 text-2xl font-bold text-blue-700 tracking-wide animate-fade-in">Conformed</span>
+            </div>
               )}
               <button
-                className="md:hidden text-gray-500 dark:text-gray-300 focus:outline-none"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
               </button>
@@ -976,32 +979,21 @@ const DashboardMedecin = () => {
         <div className="flex-1 flex flex-col">
           {/* Navbar */}
           <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between h-16 px-6">
-              {/* Left side */}
-              <div className="flex items-center space-x-4">
-                {/* Logo */}
-                <div className="flex items-center">
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-        </div>
-
-                {/* Navigation Links */}
-                <nav className="hidden md:flex space-x-4">
-                  <button 
-                    onClick={() => setActiveTab('dashboard')}
-                    className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-                  >
-                    Accueil
-                  </button>
-                  <a href="#" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium">Statistiques</a>
-                  <a href="#" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium">Historique</a>
+            <div className="flex items-center justify-between h-16 px-6 w-full">
+              {/* Bloc gauche : Logo + Conformed */}
+              {/*<div className="flex items-center gap-2 flex-shrink-0">
+                <LogoHeader />
+                <span className="ml-2 text-2xl font-bold text-blue-700 tracking-wide animate-fade-in">Conformed</span>
+              </div>*/}
+              {/* Bloc centre : Liens de navigation */}
+              <nav className="flex-1 flex justify-center space-x-8">
+                <button onClick={() => setActiveTab('dashboard')} className="text-gray-600 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Accueil</button>
+                <button onClick={() => setActiveTab('statistiques')} className="text-gray-600 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Statistiques</button>
+                <button onClick={() => setActiveTab('historique')} className="text-gray-600 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200">Historique</button>
                 </nav>
-              </div>
-
-              {/* Right side */}
-              <div className="flex items-center space-x-4">
-                {/* Search Bar */}
+              {/* Bloc droit : Recherche, dark mode, user menu */}
+              <div className="flex items-center gap-6 flex-shrink-0">
+                {/* Barre de recherche */}
                 <div className="relative">
                   <input
                     type="text"
@@ -1064,7 +1056,7 @@ const DashboardMedecin = () => {
                       >
                         Déconnexion
                       </button>
-                    </div>
+                  </div>
                   )}
                 </div>
               </div>
@@ -1082,13 +1074,13 @@ const DashboardMedecin = () => {
                     className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded font-medium"
                   >
                     Annuler
-                  </button>
+              </button>
                   <button
                     onClick={handleLogout}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-medium"
                   >
-                    Se déconnecter
-                  </button>
+                    Confirmer
+              </button>
               </div>
               </div>
             </div>

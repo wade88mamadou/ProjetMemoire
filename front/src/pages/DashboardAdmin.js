@@ -12,6 +12,7 @@ import AuditAcces from './AuditAcces';
 import RapportAudit from './RapportAudit';
 import logo from '../conformed.png'; // adapte le chemin si besoin
 import LogoHeader from '../components/LogoHeader';
+import api from '../services/api';
 
 const DashboardAdmin = () => {
   const { user, logout } = useAuth();
@@ -31,6 +32,16 @@ const DashboardAdmin = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const userMenuRef = useRef(null);
   const [selectedChart, setSelectedChart] = useState('effectif');
+  const [accesData, setAccesData] = useState([]);
+  const [accesLoading, setAccesLoading] = useState(false);
+  const [accesError, setAccesError] = useState(null);
+  const [accesPage, setAccesPage] = useState(1);
+  const [accesTotalPages, setAccesTotalPages] = useState(1);
+  const [accesSearch, setAccesSearch] = useState('');
+  const [accesTypeFilter, setAccesTypeFilter] = useState('');
+  const [accesDateFilter, setAccesDateFilter] = useState('');
+  const [accesUserFilter, setAccesUserFilter] = useState('');
+  const [userList, setUserList] = useState([]);
 
   // Fonction pour rafraîchir les statistiques
   const refreshStats = async () => {
@@ -70,6 +81,37 @@ const DashboardAdmin = () => {
       console.error('Erreur lors du chargement des statistiques par maladie:', error);
     }
   };
+
+  // Charger la liste des utilisateurs pour le filtre
+  useEffect(() => {
+    if (activeTab !== 'historique') return;
+    api.get('/utilisateurs/?page_size=1000')
+      .then(res => {
+        setUserList(res.data.results || res.data);
+      })
+      .catch(() => setUserList([]));
+  }, [activeTab]);
+
+  // Charger les accès à chaque changement de page, recherche ou filtre
+  useEffect(() => {
+    if (activeTab !== 'historique') return;
+    setAccesLoading(true);
+    let url = `/acces/?page=${accesPage}`;
+    if (accesSearch) url += `&search=${encodeURIComponent(accesSearch)}`;
+    if (accesTypeFilter) url += `&typeAcces=${encodeURIComponent(accesTypeFilter)}`;
+    if (accesDateFilter) url += `&dateAcces=${encodeURIComponent(accesDateFilter)}`;
+    if (accesUserFilter) url += `&utilisateur=${encodeURIComponent(accesUserFilter)}`;
+    api.get(url)
+      .then(res => {
+        setAccesData(res.data.results || res.data);
+        setAccesTotalPages(Math.ceil((res.data.count || res.data.length) / 10));
+        setAccesLoading(false);
+      })
+      .catch(err => {
+        setAccesError('Erreur lors du chargement de l\'historique');
+        setAccesLoading(false);
+      });
+  }, [activeTab, accesPage, accesSearch, accesTypeFilter, accesDateFilter, accesUserFilter]);
 
   // Fermer le menu utilisateur si on clique en dehors
   useEffect(() => {
@@ -443,6 +485,132 @@ const DashboardAdmin = () => {
       case 'rapport-audit':
         return <RapportAudit />;
 
+      case 'statistiques':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Statistiques Détaillées</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <div className="bg-blue-50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-blue-900">Total Patients</h3>
+                <p className="text-3xl font-bold text-blue-600">{stats.totalPatients}</p>
+              </div>
+              <div className="bg-green-50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-green-900">Nouveaux Aujourd'hui</h3>
+                <p className="text-3xl font-bold text-green-600">0</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-red-900">Cas Critiques</h3>
+                <p className="text-3xl font-bold text-red-600">0</p>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-orange-900">Taux de Guérison</h3>
+                <p className="text-3xl font-bold text-orange-600">0%</p>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Graphiques Statistiques</h3>
+              <p className="text-gray-600 dark:text-gray-400">Les graphiques détaillés seront affichés ici...</p>
+            </div>
+          </div>
+        );
+
+      case 'historique':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Historique des Actions</h2>
+            <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+              <input
+                type="text"
+                placeholder="Rechercher (utilisateur, description...)"
+                value={accesSearch}
+                onChange={e => { setAccesSearch(e.target.value); setAccesPage(1); }}
+                className="px-3 py-2 border rounded-md w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="date"
+                value={accesDateFilter}
+                onChange={e => { setAccesDateFilter(e.target.value); setAccesPage(1); }}
+                className="px-3 py-2 border rounded-md w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <select
+                value={accesTypeFilter}
+                onChange={e => { setAccesTypeFilter(e.target.value); setAccesPage(1); }}
+                className="px-3 py-2 border rounded-md w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Tous les types</option>
+                <option value="CONSULTATION">Consultation</option>
+                <option value="MODIFICATION">Modification</option>
+                <option value="SUPPRESSION">Suppression</option>
+                <option value="CONNEXION">Connexion</option>
+              </select>
+              <select
+                value={accesUserFilter}
+                onChange={e => { setAccesUserFilter(e.target.value); setAccesPage(1); }}
+                className="px-3 py-2 border rounded-md w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Tous les utilisateurs</option>
+                {userList.map(u => (
+                  <option key={u.id} value={u.id}>{u.username} {u.first_name || ''} {u.last_name || ''}</option>
+                ))}
+              </select>
+            </div>
+            <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow">
+              {accesLoading ? (
+                <div className="p-8 text-center text-gray-500">Chargement...</div>
+              ) : accesError ? (
+                <div className="p-8 text-center text-red-500">{accesError}</div>
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Utilisateur</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Données concernées</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {accesData.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-gray-500">Aucune donnée</td>
+                      </tr>
+                    ) : (
+                      accesData.map((acces, idx) => (
+                        <tr key={acces.id || idx}>
+                          <td className="px-4 py-2 whitespace-nowrap">{acces.dateAcces}</td>
+                          <td className="px-4 py-2 whitespace-nowrap">{acces.typeAcces}</td>
+                          <td className="px-4 py-2 whitespace-nowrap">{acces.utilisateur ? (acces.utilisateur.username || acces.utilisateur) : '—'}</td>
+                          <td className="px-4 py-2">{acces.donnees_concernees || '—'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            {/* Pagination */}
+            <div className="flex justify-center items-center gap-2 mt-4">
+              <button
+                onClick={() => setAccesPage(p => Math.max(1, p - 1))}
+                disabled={accesPage === 1}
+                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+              >
+                Précédent
+              </button>
+              <span className="text-gray-700 dark:text-gray-200">Page {accesPage} / {accesTotalPages}</span>
+              <button
+                onClick={() => setAccesPage(p => Math.min(accesTotalPages, p + 1))}
+                disabled={accesPage === accesTotalPages}
+                className="px-3 py-1 rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        );
+
       default:
         return (
           <div className="space-y-6">
@@ -472,7 +640,10 @@ const DashboardAdmin = () => {
             {/* Logo */}
             <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
               {sidebarOpen && (
-                <LogoHeader role="Admin" />
+                <div className="flex items-center gap-2 flex-shrink-0 pl-0">
+                <LogoHeader />
+                <span className="ml-2 text-2xl font-bold text-blue-700 tracking-wide animate-fade-in">Conformed</span>
+              </div>
               )}
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -522,32 +693,48 @@ const DashboardAdmin = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Navbar */}
           <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between h-16 px-6">
-              {/* Left side */}
-              <div className="flex items-center space-x-4">
-                {/* Logo */}
-                <div className="flex items-center">
-                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </div>
-
-                {/* Navigation Links */}
-                <nav className="hidden md:flex space-x-4">
-                  <button 
-                    onClick={() => setActiveTab('dashboard')}
-                    className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200"
-                  >
-                    Accueil
-                  </button>
-                  <a href="#" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium">Statistiques</a>
-                  <a href="#" className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium">Historique</a>
+            <div className="flex items-center justify-between h-16 px-6 w-full">
+              {/* Bloc gauche : Logo + Conformed */}
+              {/*<div className="flex items-center gap-2 flex-shrink-0">
+                <LogoHeader />
+                <span className="ml-2 text-2xl font-bold text-blue-700 tracking-wide animate-fade-in">Conformed</span>
+              </div>*/}
+              {/* Bloc centre : Liens de navigation */}
+              <nav className="flex-1 flex justify-center space-x-8">
+                <button 
+                  onClick={() => setActiveTab('dashboard')} 
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    activeTab === 'dashboard'
+                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                      : 'text-gray-600 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400'
+                  }`}
+                >
+                  Accueil
+                </button>
+                <button 
+                  onClick={() => setActiveTab('statistiques')} 
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    activeTab === 'statistiques'
+                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                      : 'text-gray-600 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400'
+                  }`}
+                >
+                  Statistiques
+                </button>
+                <button 
+                  onClick={() => setActiveTab('historique')} 
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+                    activeTab === 'historique'
+                      ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                      : 'text-gray-600 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400'
+                  }`}
+                >
+                  Historique
+                </button>
                 </nav>
-              </div>
-
-              {/* Right side */}
-              <div className="flex items-center space-x-4">
-                {/* Search Bar */}
+              {/* Bloc droit : Recherche, dark mode, user menu */}
+              <div className="flex items-center gap-6 flex-shrink-0">
+                {/* Barre de recherche */}
                 <div className="relative">
                   <input
                     type="text"

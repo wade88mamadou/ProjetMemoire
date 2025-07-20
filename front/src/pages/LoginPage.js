@@ -11,7 +11,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showInactiveModal, setShowInactiveModal] = useState(false);
   
-  const { login, error } = useAuth();
+  const { login, error, mustChangePassword } = useAuth();
   const navigate = useNavigate();
 
   // Ajout du log pour debug
@@ -40,6 +40,11 @@ const LoginPage = () => {
       const result = await login(formData);
       
       if (result.success) {
+        // Si l'utilisateur doit changer son mot de passe, rediriger vers la page de reset
+        if (result.user.must_change_password) {
+          navigate('/simple-reset');
+          return;
+        }
         // Redirection selon le rôle
         const role = result.user.role;
         console.log('Rôle de l\'utilisateur:', role);
@@ -172,19 +177,25 @@ const LoginPage = () => {
             </div>
 
             {/* Liens utiles */}
-            <div className="mt-6 text-center">
+            <div className="mt-6 flex justify-between items-center">
               <Link
                 to="/"
                 className="text-sm text-blue-600 hover:text-blue-500 transition-colors duration-200"
               >
                 ← Retour à l'accueil
               </Link>
+              <Link
+                to="/simple-reset"
+                className="text-sm text-gray-600 hover:text-gray-800 transition-colors duration-200"
+              >
+                Mot de passe oublié ?
+              </Link>
             </div>
           </div>
         </form>
 
         {/* Informations sur les rôles */}
-        <div className="bg-white p-4 rounded-lg shadow-sm">
+       {/* <div className="bg-white p-4 rounded-lg shadow-sm">
           <h3 className="text-sm font-medium text-gray-900 mb-2">Rôles disponibles :</h3>
           <div className="text-xs text-gray-600 space-y-1">
             <div className="flex items-center">
@@ -200,7 +211,7 @@ const LoginPage = () => {
               <strong>Utilisateur simple :</strong> Consultation des informations de base
             </div>
           </div>
-        </div>
+        </div>*/}
       </div>
       {showInactiveModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">

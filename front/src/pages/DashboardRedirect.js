@@ -3,11 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const DashboardRedirect = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading) {
+      // Si l'utilisateur n'est pas authentifié, rediriger vers la page de connexion
+      if (!isAuthenticated || !user) {
+        navigate('/login');
+        return;
+      }
+
       // Redirection selon le rôle
       switch (user.role) {
         case 'ADMIN':
@@ -23,7 +29,7 @@ const DashboardRedirect = () => {
           navigate('/user/dashboard');
       }
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, isAuthenticated, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import ImportCSVView, tester_detection_seuils, mes_patients, export_patients_pdf, export_patient_pdf, export_patients_csv, export_patient_csv
+from .views import ImportCSVView, tester_detection_seuils, mes_patients, export_patients_pdf, export_patient_pdf, export_patients_csv, export_patient_csv, ForgotPasswordVerifyView, ForgotPasswordResetView, VerifyUsernameEmailView, SimplePasswordResetWithTokenView, VerifyUsernameView
 
 router = DefaultRouter()
 router.register(r'patients', views.PatientViewSet)
@@ -37,9 +37,20 @@ urlpatterns = [
     path('auth/user/', views.UserDetailView.as_view(), name='user-detail'),
     path('auth/change-password/', views.change_password, name='change-password'),
     
+    # URL de réinitialisation simple de mot de passe (admin seulement)
+    path('auth/admin-reset-password/', views.simple_password_reset, name='admin-password-reset'),
+    path('auth/forgot-password/verify/', ForgotPasswordVerifyView.as_view(), name='forgot-password-verify'),
+    path('auth/forgot-password/reset/', ForgotPasswordResetView.as_view(), name='forgot-password-reset'),
+    path('auth/verify-username/', VerifyUsernameView.as_view(), name='verify-username'),
+    path('auth/reset-password-token/', SimplePasswordResetWithTokenView.as_view(), name='reset-password-token'),
+
     # URLs de gestion des utilisateurs (admin seulement)
     path('admin/users/', views.UserAdminViewSet.as_view(), name='admin-users'),
     path('admin/users/<int:pk>/', views.UserAdminDetailView.as_view(), name='admin-user-detail'),
+    
+    # URLs d'historique admin
+    path('admin/historique/', views.historique_admin, name='historique-admin'),
+    path('admin/historique/export/', views.export_historique, name='export-historique'),
     
     # URLs de statistiques
     path('patient-statistics/', views.patient_statistics, name='patient-statistics'),

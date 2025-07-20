@@ -19,6 +19,7 @@ class Utilisateur(AbstractUser):
     )
     statut = models.CharField(max_length=50, blank=True, null=True)
     medecin = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, limit_choices_to={'role': 'MEDECIN'}, related_name='users_simples')
+    must_change_password = models.BooleanField(default=True, help_text="L'utilisateur doit changer son mot de passe à la première connexion")
     
     class Meta:
         verbose_name = "Utilisateur"
@@ -156,7 +157,7 @@ class RegleConformite(models.Model):
 
 class Acces(models.Model): 
     typeAcces = models.CharField(max_length=250)
-    dateAcces = models.DateField()
+    dateAcces = models.DateTimeField(auto_now_add=True)
     regle = models.ForeignKey(RegleConformite, on_delete=models.CASCADE, null=True, blank=True)
     utilisateur = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True)
     donnees_concernees = models.TextField(blank=True, null=True)
@@ -200,7 +201,7 @@ class DemandeExportation(models.Model):
         verbose_name = "Demande d'exportation"
         verbose_name_plural = "Demandes d'exportation"
         ordering = ['-date_demande']
-    
+
     def __str__(self):
         return f"Demande de {self.demandeur.username if self.demandeur else 'Unknown'} - {self.statut}"
     

@@ -59,24 +59,10 @@ from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
-from .serializers import ForgotPasswordVerifySerializer, ForgotPasswordResetSerializer
-from django.core.cache import cache
-from django.utils.crypto import get_random_string
-from django.utils import timezone
-from datetime import timedelta
-import uuid
-from django.conf import settings
-from rest_framework.permissions import AllowAny
-from django.contrib.auth import get_user_model
-import logging
-
-# Configuration du logger
-logger = logging.getLogger(__name__)
 
 # Create your views here.
 
 @api_view(['GET'])
-@permission_classes([permissions.AllowAny])
 def test_connexion(request):
     return Response({"message": "Connexion OK entre Django et React !"})
 
@@ -105,7 +91,7 @@ class PatientViewSet(AuditAccessMixin, viewsets.ModelViewSet):
         
         # Log des alertes créées
         if alertes_crees:
-            logger.info(f"Alertes créées lors de la création du patient: {len(alertes_crees)}")
+            print(f"Alertes créées lors de la création du patient: {len(alertes_crees)}")
     
     def perform_update(self, serializer):
         """Override pour ajouter la détection automatique lors des modifications"""
@@ -127,7 +113,7 @@ class PatientViewSet(AuditAccessMixin, viewsets.ModelViewSet):
         
         # Log des alertes créées
         if alertes_crees:
-            logger.info(f"Alertes créées lors de la modification du patient: {len(alertes_crees)}")
+            print(f"Alertes créées lors de la modification du patient: {len(alertes_crees)}")
 
 class ProfessionViewSet(viewsets.ModelViewSet):
     queryset = Profession.objects.all()
@@ -214,7 +200,7 @@ class ResultatAnalyseViewSet(AuditAccessMixin, viewsets.ModelViewSet):
         
         # Log des alertes créées
         if alertes_crees:
-            logger.info(f"Alertes créées lors de la création du résultat d'analyse: {len(alertes_crees)}")
+            print(f"Alertes créées lors de la création du résultat d'analyse: {len(alertes_crees)}")
     
     def perform_update(self, serializer):
         """Override pour ajouter la détection automatique lors des modifications"""
@@ -236,50 +222,31 @@ class ResultatAnalyseViewSet(AuditAccessMixin, viewsets.ModelViewSet):
         
         # Log des alertes créées
         if alertes_crees:
-            logger.info(f"Alertes créées lors de la modification du résultat d'analyse: {len(alertes_crees)}")
+            print(f"Alertes créées lors de la modification du résultat d'analyse: {len(alertes_crees)}")
 
 class AlimentationViewSet(viewsets.ModelViewSet):
     queryset = Alimentation.objects.all()
     serializer_class = AlimentationSerializer
 
 class AccesViewSet(viewsets.ModelViewSet):
-    queryset = Acces.objects.all().select_related('utilisateur', 'regle').order_by('-dateAcces')
+    queryset = Acces.objects.all()
     serializer_class = AccesSerializer
-
-    def list(self, request, *args, **kwargs):
-        acces = self.get_queryset()
-        data = [
-            {
-                'id': a.id,
-                'dateAcces': a.dateAcces,
-                'typeAcces': a.typeAcces,
-                'donnees_concernees': a.donnees_concernees,
-                'utilisateur': {
-                    'id': a.utilisateur.id if a.utilisateur else None,
-                    'username': a.utilisateur.username if a.utilisateur else None,
-                    'role': a.utilisateur.role if a.utilisateur else None
-                } if a.utilisateur else None,
-                'regle': (
-                    {'id': a.regle.id, 'nomRegle': getattr(a.regle, 'nomRegle', None)}
-                    if a.regle and hasattr(a.regle, 'id') and hasattr(a.regle, 'nomRegle') else None
-                )
-            }
-            for a in acces
-        ]
-        return Response(data)
 
 class LoginView(APIView):
     """Vue pour la connexion utilisateur"""
     permission_classes = [permissions.AllowAny]
     
     def post(self, request):
-        logger.info(f"Tentative de connexion pour l'utilisateur: {request.data.get('username', 'inconnu')}")
+        print(f"=== DEBUG LOGIN ===")
+        print(f"Données reçues: {request.data}")
         
         serializer = LoginSerializer(data=request.data)
+        print(f"Serializer créé")
         
         if serializer.is_valid():
+            print(f"Serializer valide")
             user = serializer.validated_data['user']
-            logger.info(f"Connexion réussie pour l'utilisateur: {user.username}")
+            print(f"Utilisateur trouvé: {user.username}")
             
             refresh = RefreshToken.for_user(user)
             
@@ -291,13 +258,21 @@ class LoginView(APIView):
                 'user': UserSerializer(user).data
             })
         else:
-            logger.warning(f"Échec de connexion - Erreurs de validation: {serializer.errors}")
-            
-            return Response({
-                'success': False,
-                'message': 'Nom d\'utilisateur ou mot de passe incorrect',
-                'errors': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
+            print(f"Erreurs de validation: {serializer.errors}")
+        
+        # Gestion spéciale pour les comptes désactivés
+        errors = serializer.errors
+        if 'non_field_errors' in errors:
+            error_data = errors['non_field_errors'][0]
+            if isinstance(error_data, dict) and error_data.get('code') == 'ACCOUNT_DISABLED':
+                return Response({
+                    'success': False,
+                    'error': error_data['error'],
+                    'message': error_data['message'],
+                    'code': error_data['code']
+                }, status=status.HTTP_403_FORBIDDEN)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class LogoutView(APIView):
     """Vue pour la déconnexion utilisateur"""
@@ -429,9 +404,9 @@ class ImportCSVView(APIView):
     def get_or_create_profession(self, row):
         """Crée ou récupère une profession"""
         nom_profession = self.clean_value(row.get('Job', ''))
-        logger.info(f"    Job: '{row.get('Job', 'N/A')}' -> nom_profession: '{nom_profession}'")
+        print(f"    Job: '{row.get('Job', 'N/A')}' -> nom_profession: '{nom_profession}'")
         if not nom_profession:
-            logger.info(f"    ✗ Pas de profession, retourne None")
+            print(f"    ✗ Pas de profession, retourne None")
             return None
         
         try:
@@ -447,18 +422,18 @@ class ImportCSVView(APIView):
                     'freqRevenu': self.clean_value(row.get('Freq_Incomes', ''))
                 }
             )
-            logger.info(f"    ✓ Profession créée/récupérée: {profession} (créé: {created})")
+            print(f"    ✓ Profession créée/récupérée: {profession} (créé: {created})")
             return profession
         except Exception as e:
-            logger.info(f"    ✗ Erreur création profession: {e}")
+            print(f"    ✗ Erreur création profession: {e}")
             return None
 
     def get_or_create_residence(self, row):
         """Crée ou récupère une résidence"""
         pays = self.clean_value(row.get('Place_birth', ''))
-        logger.info(f"    Place_birth: '{row.get('Place_birth', 'N/A')}' -> pays: '{pays}'")
+        print(f"    Place_birth: '{row.get('Place_birth', 'N/A')}' -> pays: '{pays}'")
         if not pays:
-            logger.info(f"    ✗ Pas de pays, retourne None")
+            print(f"    ✗ Pas de pays, retourne None")
             return None
         
         residence, created = Residence.objects.get_or_create(
@@ -521,9 +496,9 @@ class ImportCSVView(APIView):
     def create_patient(self, row, profession, residence, logement, comportement, alimentation):
         """Crée un patient"""
         id_code = self.clean_value(row.get('ID', ''))
-        logger.info(f"  ID_CODE: '{id_code}' (type: {type(id_code)})")
+        print(f"  ID_CODE: '{id_code}' (type: {type(id_code)})")
         if id_code is None or id_code == '':
-            logger.info(f"  ✗ ID_CODE vide, patient ignoré")
+            print(f"  ✗ ID_CODE vide, patient ignoré")
             return None
         
         # Vérifier si le patient existe déjà
@@ -659,10 +634,10 @@ class ImportCSVView(APIView):
 
     def post(self, request):
         # Debug: afficher les fichiers reçus
-        logger.info("=== DEBUG IMPORT CSV ===")
-        logger.info(f"FILES reçus: {list(request.FILES.keys())}")
-        logger.info(f"Content-Type: {request.content_type}")
-        logger.info(f"Headers: {dict(request.headers)}")
+        print("=== DEBUG IMPORT CSV ===")
+        print(f"FILES reçus: {list(request.FILES.keys())}")
+        print(f"Content-Type: {request.content_type}")
+        print(f"Headers: {dict(request.headers)}")
         
         # Accepter plusieurs noms de champ pour le fichier
         file = request.FILES.get('file') or request.FILES.get('csv_file')
@@ -678,9 +653,9 @@ class ImportCSVView(APIView):
             raw_data = file.read()
             file.seek(0)
             
-            logger.info(f"=== ENCODAGE === ===")
-            logger.info(f"Taille du fichier reçu: {len(raw_data)} bytes")
-            logger.info(f"Premiers bytes: {raw_data[:50]}")
+            print(f"=== DEBUG ENCODAGE ===")
+            print(f"Taille du fichier reçu: {len(raw_data)} bytes")
+            print(f"Premiers bytes: {raw_data[:50]}")
             
             # Essayer plusieurs encodages (ISO-8859-1 en premier car c'est le plus courant pour les CSV)
             encodings_to_try = ['ISO-8859-1', 'latin-1', 'cp1252', 'windows-1252', 'utf-8']
@@ -689,15 +664,15 @@ class ImportCSVView(APIView):
             # D'abord essayer chardet
             try:
                 detected = chardet.detect(raw_data)
-                logger.info(f"Chardet détecté: {detected}")
+                print(f"Chardet détecté: {detected}")
                 if detected['confidence'] > 0.7 and detected['encoding']:
                     # Ajouter l'encodage détecté en premier s'il n'est pas déjà dans la liste
                     if detected['encoding'] not in encodings_to_try:
                         encodings_to_try.insert(0, detected['encoding'])
             except Exception as e:
-                logger.info(f"Erreur chardet: {e}")
+                print(f"Erreur chardet: {e}")
             
-            logger.info(f"Encodages à tester: {encodings_to_try}")
+            print(f"Encodages à tester: {encodings_to_try}")
             
             # Essayer chaque encodage
             for encoding in encodings_to_try:
@@ -711,14 +686,14 @@ class ImportCSVView(APIView):
                     from io import StringIO
                     df = pd.read_csv(StringIO(decoded_data), sep=';')
                     encoding_detected = encoding
-                    logger.info(f"✓ Succès avec l'encodage: {encoding}")
-                    logger.info(f"  Dimensions: {df.shape}")
+                    print(f"✓ Succès avec l'encodage: {encoding}")
+                    print(f"  Dimensions: {df.shape}")
                     break
                 except UnicodeDecodeError as e:
-                    logger.info(f"✗ {encoding}: UnicodeDecodeError - {str(e)[:50]}...")
+                    print(f"✗ {encoding}: UnicodeDecodeError - {str(e)[:50]}...")
                     continue
                 except Exception as e:
-                    logger.info(f"✗ {encoding}: Exception - {str(e)[:50]}...")
+                    print(f"✗ {encoding}: Exception - {str(e)[:50]}...")
                     continue
             
             if encoding_detected is None:
@@ -751,36 +726,36 @@ class ImportCSVView(APIView):
 
             for index, row in df.iterrows():
                 try:
-                    logger.info(f"\n=== TRAITEMENT LIGNE {index + 1} ===")
-                    logger.info(f"ID: {row.get('ID', 'N/A')}")
-                    logger.info(f"Age: {row.get('Age', 'N/A')}")
-                    logger.info(f"Sex: {row.get('Sex', 'N/A')}")
+                    print(f"\n=== TRAITEMENT LIGNE {index + 1} ===")
+                    print(f"ID: {row.get('ID', 'N/A')}")
+                    print(f"Age: {row.get('Age', 'N/A')}")
+                    print(f"Sex: {row.get('Sex', 'N/A')}")
                     
                     # 1. Créer les objets de base
-                    logger.info(f"  Création des objets de base...")
+                    print(f"  Création des objets de base...")
                     profession = self.get_or_create_profession(row)
-                    logger.info(f"  ✓ Profession créée: {profession}")
+                    print(f"  ✓ Profession créée: {profession}")
                     
                     residence = self.get_or_create_residence(row)
-                    logger.info(f"  ✓ Residence créée: {residence}")
+                    print(f"  ✓ Residence créée: {residence}")
                     
                     logement = self.get_or_create_logement(row)
-                    logger.info(f"  ✓ Logement créé: {logement}")
+                    print(f"  ✓ Logement créé: {logement}")
                     
                     comportement = self.get_or_create_comportement(row)
-                    logger.info(f"  ✓ Comportement créé: {comportement}")
+                    print(f"  ✓ Comportement créé: {comportement}")
                     
                     alimentation = self.get_or_create_alimentation(row)
-                    logger.info(f"  ✓ Alimentation créée: {alimentation}")
+                    print(f"  ✓ Alimentation créée: {alimentation}")
                     
                     # 2. Créer le patient
                     patient = self.create_patient(row, profession, residence, logement, comportement, alimentation)
                     if patient:
                         stats['patients_created'] += 1
-                        logger.info(f"✓ Patient créé: {patient.id_code}")
+                        print(f"✓ Patient créé: {patient.id_code}")
                     else:
                         stats['patients_skipped'] += 1
-                        logger.info(f"✗ Patient ignoré")
+                        print(f"✗ Patient ignoré")
                         continue
                     
                     # 3. Créer le dossier médical
@@ -1080,7 +1055,7 @@ def statistiques_demandes_exportation(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([permissions.IsAuthenticated])
 def mes_patients(request):
     patients = Patient.objects.all()
     serializer = PatientSerializer(patients, many=True)
@@ -1373,7 +1348,7 @@ def mes_rapports(request):
             'rapports': serializer.data,
             'total_rapports': rapports.count()
         })
-    except Exception as e:
+        except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Détection seuil médical
@@ -1517,10 +1492,10 @@ class ExportDossierMedicalView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, dossier_id):
-        logger.info(f"[DEBUG] ExportDossierMedicalView appelé avec dossier_id={dossier_id} par user={request.user}")
+        print(f"[DEBUG] ExportDossierMedicalView appelé avec dossier_id={dossier_id} par user={request.user}")
         try:
             dossier = DossierMedical.objects.get(pk=dossier_id)
-            logger.info(f"[DEBUG] Dossier trouvé: {dossier}")
+            print(f"[DEBUG] Dossier trouvé: {dossier}")
             # Génération du CSV
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = f'attachment; filename=\"dossier_{dossier_id}.csv\"'
@@ -1536,20 +1511,20 @@ class ExportDossierMedicalView(APIView):
                 type_acces='EXPORT',
                 donnees_concernees=f"Export dossier médical #{dossier_id}"
             )
-            logger.info(f"[DEBUG] Export CSV réussi pour dossier_id={dossier_id}")
+            print(f"[DEBUG] Export CSV réussi pour dossier_id={dossier_id}")
             return response
         except DossierMedical.DoesNotExist:
-            logger.info(f"[DEBUG] DossierMedical.DoesNotExist pour dossier_id={dossier_id}")
+            print(f"[DEBUG] DossierMedical.DoesNotExist pour dossier_id={dossier_id}")
             return JsonResponse({'error': 'Dossier médical non trouvé'}, status=404)
         except Exception as e:
-            logger.info(f"[DEBUG] Exception dans ExportDossierMedicalView: {e}")
+            print(f"[DEBUG] Exception dans ExportDossierMedicalView: {e}")
             return JsonResponse({'error': f"Erreur lors de l'export : {str(e)}"}, status=500)
 
 class ExportDossierMedicalPDFView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, dossier_id):
-        logger.info(f"[DEBUG] ExportDossierMedicalPDFView appelé avec dossier_id={dossier_id} par user={request.user}")
+        print(f"[DEBUG] ExportDossierMedicalPDFView appelé avec dossier_id={dossier_id} par user={request.user}")
         try:
             dossier = DossierMedical.objects.get(pk=dossier_id)
             patient = dossier.patient
@@ -1593,23 +1568,23 @@ class ExportDossierMedicalPDFView(APIView):
                 type_acces='EXPORT',
                 donnees_concernees=f"Export PDF dossier médical #{dossier_id}"
             )
-            logger.info(f"[DEBUG] Export PDF réussi pour dossier_id={dossier_id}")
+            print(f"[DEBUG] Export PDF réussi pour dossier_id={dossier_id}")
             return response
         except DossierMedical.DoesNotExist:
-            logger.info(f"[DEBUG] DossierMedical.DoesNotExist pour dossier_id={dossier_id}")
+            print(f"[DEBUG] DossierMedical.DoesNotExist pour dossier_id={dossier_id}")
             return JsonResponse({'error': 'Dossier médical non trouvé'}, status=404)
         except Exception as e:
-            logger.info(f"[DEBUG] Exception dans ExportDossierMedicalPDFView: {e}")
+            print(f"[DEBUG] Exception dans ExportDossierMedicalPDFView: {e}")
             return JsonResponse({'error': f"Erreur lors de l'export PDF : {str(e)}"}, status=500)
 
 class ExportResultatsAnalyseView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, analyse_id):
-        logger.info(f"[DEBUG] ExportResultatsAnalyseView appelé avec analyse_id={analyse_id} par user={request.user}")
+        print(f"[DEBUG] ExportResultatsAnalyseView appelé avec analyse_id={analyse_id} par user={request.user}")
         try:
             analyse = ResultatAnalyse.objects.get(pk=analyse_id)
-            logger.info(f"[DEBUG] Analyse trouvée: {analyse}")
+            print(f"[DEBUG] Analyse trouvée: {analyse}")
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = f'attachment; filename=\"resultats_analyse_{analyse_id}.csv\"'
             writer = csv.writer(response)
@@ -1634,23 +1609,23 @@ class ExportResultatsAnalyseView(APIView):
                 type_acces='EXPORT',
                 donnees_concernees=f"Export résultats analyse #{analyse_id}"
             )
-            logger.info(f"[DEBUG] Export CSV réussi pour analyse_id={analyse_id}")
+            print(f"[DEBUG] Export CSV réussi pour analyse_id={analyse_id}")
             return response
         except ResultatAnalyse.DoesNotExist:
-            logger.info(f"[DEBUG] ResultatAnalyse.DoesNotExist pour analyse_id={analyse_id}")
+            print(f"[DEBUG] ResultatAnalyse.DoesNotExist pour analyse_id={analyse_id}")
             return JsonResponse({'error': "Résultat d'analyse non trouvé"}, status=404)
         except Exception as e:
-            logger.info(f"[DEBUG] Exception dans ExportResultatsAnalyseView: {e}")
+            print(f"[DEBUG] Exception dans ExportResultatsAnalyseView: {e}")
             return JsonResponse({'error': f"Erreur lors de l'export : {str(e)}"}, status=500)
 
 class ExportResultatsAnalysePDFView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, analyse_id):
-        logger.info(f"[DEBUG] ExportResultatsAnalysePDFView appelé avec analyse_id={analyse_id} par user={request.user}")
+        print(f"[DEBUG] ExportResultatsAnalysePDFView appelé avec analyse_id={analyse_id} par user={request.user}")
         try:
             analyse = ResultatAnalyse.objects.get(pk=analyse_id)
-            logger.info(f"[DEBUG] Analyse trouvée: {analyse}")
+            print(f"[DEBUG] Analyse trouvée: {analyse}")
             response = HttpResponse(content_type='application/pdf')
             response['Content-Disposition'] = f'attachment; filename=\"resultats_analyse_{analyse_id}.pdf\"'
             p = canvas.Canvas(response)
@@ -1671,13 +1646,13 @@ class ExportResultatsAnalysePDFView(APIView):
                 type_acces='EXPORT',
                 donnees_concernees=f"Export PDF résultats analyse #{analyse_id}"
             )
-            logger.info(f"[DEBUG] Export PDF réussi pour analyse_id={analyse_id}")
+            print(f"[DEBUG] Export PDF réussi pour analyse_id={analyse_id}")
             return response
         except ResultatAnalyse.DoesNotExist:
-            logger.info(f"[DEBUG] ResultatAnalyse.DoesNotExist pour analyse_id={analyse_id}")
+            print(f"[DEBUG] ResultatAnalyse.DoesNotExist pour analyse_id={analyse_id}")
             return JsonResponse({'error': "Résultat d'analyse non trouvé"}, status=404)
         except Exception as e:
-            logger.info(f"[DEBUG] Exception dans ExportResultatsAnalysePDFView: {e}")
+            print(f"[DEBUG] Exception dans ExportResultatsAnalysePDFView: {e}")
             return JsonResponse({'error': f"Erreur lors de l'export PDF : {str(e)}"}, status=500)
 
 def rapport_audit(request):
@@ -1990,8 +1965,8 @@ def simple_password_reset(request):
     Réinitialisation simple de mot de passe par nom d'utilisateur
     (Réservé au développement et aux administrateurs)
     """
-    logger.info(f"=== SIMPLE PASSWORD RESET === ===")
-    logger.info(f"Données reçues: {request.data}")
+    print(f"=== DEBUG SIMPLE PASSWORD RESET ===")
+    print(f"Données reçues: {request.data}")
     
     username = request.data.get('username')
     new_password = request.data.get('new_password')
@@ -2008,13 +1983,12 @@ def simple_password_reset(request):
     
     try:
         user = Utilisateur.objects.get(username=username, is_active=True)
-        logger.info(f"Utilisateur trouvé: {user.username}")
+        print(f"Utilisateur trouvé: {user.username}")
         
         # Mettre à jour le mot de passe
         user.set_password(new_password)
-        user.must_change_password = False  # Désactive l'obligation de changer le mot de passe
         user.save()
-        logger.info(f"Mot de passe mis à jour pour {user.username}")
+        print(f"Mot de passe mis à jour pour {user.username}")
         
         return Response({
             'success': True,
@@ -2026,117 +2000,7 @@ def simple_password_reset(request):
             'error': 'Utilisateur non trouvé ou compte inactif.'
         }, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        logger.info(f"Erreur lors de la réinitialisation: {e}")
+        print(f"Erreur lors de la réinitialisation: {e}")
         return Response({
             'error': 'Erreur lors de la réinitialisation du mot de passe.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-class ForgotPasswordVerifyView(APIView):
-    permission_classes = [AllowAny]
-    MAX_ATTEMPTS = 5
-    BLOCK_TIME = 60 * 60  # 1h en secondes
-
-    def post(self, request):
-        ip = request.META.get('REMOTE_ADDR')
-        email = request.data.get('email')
-        username = request.data.get('username')
-        cache_key = f'fpw_attempts_{ip}_{username}_{email}'
-        attempts = cache.get(cache_key, 0)
-        if attempts >= self.MAX_ATTEMPTS:
-            return Response({'detail': "Trop de tentatives, réessayez plus tard."}, status=429)
-        serializer = ForgotPasswordVerifySerializer(data=request.data)
-        if not serializer.is_valid():
-            cache.set(cache_key, attempts + 1, timeout=self.BLOCK_TIME)
-            return Response({'detail': "Identifiants invalides."}, status=400)
-        user = serializer.validated_data['user']
-        # Générer un token temporaire (valable 15 min)
-        token = get_random_string(32)
-        token_key = f'fpw_token_{token}'
-        cache.set(token_key, user.pk, timeout=15*60)
-        # Reset attempts si succès
-        cache.set(cache_key, 0, timeout=self.BLOCK_TIME)
-        return Response({'token': token})
-
-class ForgotPasswordResetView(APIView):
-    permission_classes = [AllowAny]
-    def post(self, request):
-        serializer = ForgotPasswordResetSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response({'detail': "Erreur de validation."}, status=400)
-        token = serializer.validated_data['token']
-        token_key = f'fpw_token_{token}'
-        user_id = cache.get(token_key)
-        if not user_id:
-            return Response({'detail': "Lien ou session expiré(e)."}, status=400)
-        try:
-            from .models import Utilisateur
-            user = Utilisateur.objects.get(pk=user_id)
-        except Utilisateur.DoesNotExist:
-            return Response({'detail': "Utilisateur introuvable."}, status=400)
-        user.set_password(serializer.validated_data['new_password'])
-        user.save()
-        cache.delete(token_key)
-        return Response({'detail': "Mot de passe modifié avec succès."})
-
-# Stockage temporaire des tokens (en mémoire pour simplicité, à remplacer par un modèle si besoin)
-TEMP_RESET_TOKENS = {}
-
-class VerifyUsernameEmailView(APIView):
-    def post(self, request):
-        username = request.data.get('username')
-        email = request.data.get('email')
-        User = get_user_model()
-        try:
-            user = User.objects.get(username=username, email=email)
-        except User.DoesNotExist:
-            return Response({'detail': "Nom d'utilisateur ou email invalide."}, status=status.HTTP_400_BAD_REQUEST)
-        # Générer un token temporaire
-        token = str(uuid.uuid4())
-        # Stocker le token avec une expiration (10 min)
-        TEMP_RESET_TOKENS[token] = {
-            'user_id': user.id,
-            'expires_at': timezone.now() + timedelta(minutes=10)
-        }
-        return Response({'token': token}, status=200)
-
-class SimplePasswordResetWithTokenView(APIView):
-    def post(self, request):
-        token = request.data.get('token')
-        new_password = request.data.get('new_password')
-        confirm_password = request.data.get('confirm_password')
-        if not token or token not in TEMP_RESET_TOKENS:
-            return Response({'detail': 'Token invalide ou expiré.'}, status=400)
-        token_data = TEMP_RESET_TOKENS[token]
-        if timezone.now() > token_data['expires_at']:
-            del TEMP_RESET_TOKENS[token]
-            return Response({'detail': 'Token expiré.'}, status=400)
-        if new_password != confirm_password:
-            return Response({'detail': 'Les mots de passe ne correspondent pas.'}, status=400)
-        if len(new_password) < 8:
-            return Response({'detail': 'Le mot de passe doit contenir au moins 8 caractères.'}, status=400)
-        User = get_user_model()
-        try:
-            user = User.objects.get(id=token_data['user_id'])
-        except User.DoesNotExist:
-            return Response({'detail': 'Utilisateur introuvable.'}, status=400)
-        user.set_password(new_password)
-        user.save()
-        del TEMP_RESET_TOKENS[token]
-        return Response({'detail': 'Mot de passe réinitialisé avec succès.'}, status=200)
-
-class VerifyUsernameView(APIView):
-    permission_classes = [AllowAny]
-    def post(self, request):
-        username = request.data.get('username')
-        User = get_user_model()
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return Response({'detail': "Nom d'utilisateur invalide."}, status=status.HTTP_400_BAD_REQUEST)
-        # Générer un token temporaire
-        token = str(uuid.uuid4())
-        TEMP_RESET_TOKENS[token] = {
-            'user_id': user.id,
-            'expires_at': timezone.now() + timedelta(minutes=10)
-        }
-        return Response({'token': token}, status=200)

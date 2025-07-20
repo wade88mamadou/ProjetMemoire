@@ -2,10 +2,12 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import SecureNavigation from './components/SecureNavigation';
 
 // Pages
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import SimpleResetPage from './pages/SimpleResetPage';
 import DashboardAdmin from './pages/DashboardAdmin';
 import DashboardMedecin from './pages/DashboardMedecin';
 import DashboardUserSimple from './pages/DashboardUserSimple';
@@ -18,18 +20,31 @@ import DemandesExportationMedecin from './pages/DemandesExportationMedecin';
 import AlertesCritiques from './pages/AlertesCritiques';
 import ConfigAlertesSecurite from './pages/ConfigAlertesSecurite';
 import RapportAudit from './pages/RapportAudit';
+import ContactPage from './pages/ContactPage';
+import AboutPage from './pages/AboutPage';
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <div className="App">
+          <SecureNavigation />
           <Routes>
             {/* Routes publiques */}
             <Route path="/" element={<HomePage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/about" element={<AboutPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/simple-reset" element={<SimpleResetPage />} />
             <Route path="/unauthorized" element={<UnauthorizedPage />} />
-            <Route path="/dashboard" element={<DashboardRedirect />} />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <DashboardRedirect />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Routes protégées par rôle */}
             <Route 
@@ -120,7 +135,6 @@ function App() {
                 </ProtectedRoute>
               } 
             />
-
 
             
             {/* Route par défaut - redirige vers l'accueil */}

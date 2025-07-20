@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
 
 const AuthContext = createContext();
@@ -23,18 +24,20 @@ export const AuthProvider = ({ children }) => {
     
     if (token && savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const userData = JSON.parse(savedUser);
+        setUser(userData);
+        
         // Vérifier si le token est toujours valide
         authService.getUserDetails()
           .then(response => {
             setUser(response.data);
             localStorage.setItem('user', JSON.stringify(response.data));
+            setLoading(false);
           })
-          .catch(() => {
+          .catch((error) => {
+            console.error('Token invalide:', error);
             // Token invalide, déconnecter l'utilisateur
             logout();
-          })
-          .finally(() => {
             setLoading(false);
           });
       } catch (error) {
@@ -43,6 +46,8 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     } else {
+      // Pas de token ou d'utilisateur, s'assurer que l'état est propre
+      setUser(null);
       setLoading(false);
     }
   }, []);
@@ -110,6 +115,7 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('user');
       localStorage.removeItem('role');
       
+      // Nettoyer l'état
       setUser(null);
       setError(null);
     }
@@ -166,6 +172,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     isMedecin,
     isAuthenticated: !!user,
+    mustChangePassword: user?.must_change_password || false,
   };
 
   return (

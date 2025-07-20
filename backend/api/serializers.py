@@ -1,5 +1,13 @@
+import logging
+logger = logging.getLogger(__name__)
+
 from rest_framework import serializers
 from django.contrib.auth import authenticate
+from django.contrib.auth import get_user_model
+from django.core.cache import cache
+from django.utils import timezone
+from .validators import validate_password_strength, validate_username, validate_email, sanitize_input
+from django.core.mail import send_mail
 
 from .models import (
     Utilisateur, Patient, Profession, Logement, Residence, Comportement,
@@ -8,12 +16,9 @@ from .models import (
     DemandeExportation
 )
 
-
 #classe serializer
 class ImportSerializer(serializers.Serializer):
     file = serializers.FileField()
-
-
 
 # Serializers d'authentification
 class UserSerializer(serializers.ModelSerializer):
@@ -28,6 +33,11 @@ class LoginSerializer(serializers.Serializer):
     """Serializer pour la connexion"""
     username = serializers.CharField(max_length=255)
     password = serializers.CharField(max_length=128, write_only=True)
+    
+    def validate_username(self, value):
+        """Valide le nom d'utilisateur"""
+        # Temporairement, on ne fait que nettoyer les espaces
+        return value.strip() if value else value
     
     def validate(self, attrs):
         username = attrs.get('username')
@@ -50,7 +60,10 @@ class LoginSerializer(serializers.Serializer):
 
 class UserCreateSerializer(serializers.ModelSerializer):
     """Serializer pour la création d'utilisateur (admin seulement)"""
-    password = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(
+        write_only=True, 
+        min_length=8,  # Réduit de 12 à 8 pour le développement
+    )
     password_confirm = serializers.CharField(write_only=True)
     medecin = serializers.PrimaryKeyRelatedField(queryset=Utilisateur.objects.filter(role='MEDECIN'), required=False, allow_null=True)
     
@@ -58,13 +71,39 @@ class UserCreateSerializer(serializers.ModelSerializer):
         model = Utilisateur
         fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'last_name', 'role', 'specialite', 'medecin']
     
+    def validate_username(self, value):
+        """Valide le nom d'utilisateur"""
+        # Validation simplifiée pour le développement
+        if len(value) < 3:
+            raise serializers.ValidationError("Le nom d'utilisateur doit contenir au moins 3 caractères.")
+        return value.strip()
+    
+    def validate_email(self, value):
+        """Valide l'email"""
+        # Validation simplifiée
+        if '@' not in value or '.' not in value:
+            raise serializers.ValidationError("Veuillez entrer une adresse email valide.")
+        return value.lower().strip()
+    
+    def validate_first_name(self, value):
+        """Valide le prénom"""
+        return value.strip() if value else value
+    
+    def validate_last_name(self, value):
+        """Valide le nom"""
+        return value.strip() if value else value
+    
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError("Les mots de passe ne correspondent pas.")
         
-        # Empêcher la création d'admins via cette interface
-        if attrs.get('role') == 'ADMIN':
-            raise serializers.ValidationError("La création d'administrateurs n'est pas autorisée via cette interface.")
+        # Vérifier que l'email n'est pas déjà utilisé
+        if Utilisateur.objects.filter(email=attrs['email']).exists():
+            raise serializers.ValidationError("Cet email est déjà utilisé.")
+        
+        # Vérifier que le username n'est pas déjà utilisé
+        if Utilisateur.objects.filter(username=attrs['username']).exists():
+            raise serializers.ValidationError("Ce nom d'utilisateur est déjà utilisé.")
         
         return attrs
     
@@ -72,13 +111,36 @@ class UserCreateSerializer(serializers.ModelSerializer):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
         user = Utilisateur(**validated_data)
-        user.set_password(password)  # <-- C'est cette ligne qui hash le mot de passe !
+        user.set_password(password)
+        user.must_change_password = True  # Forcer le changement à la première connexion
         user.save()
+        
+        # Log de la création
+        logger.info(f"Utilisateur créé par {self.context['request'].user.username}: {user.username}")
+
+        # Envoi de l'email avec les identifiants (username comme identifiant)
+        try:
+            reset_url = 'https://conformed.sn/reset-password'  # À adapter selon votre front
+            send_mail(
+                subject='Création de votre compte sur Conformed',
+                message=f'Bonjour {user.first_name},\n\nVotre compte a été créé.\nNom d’utilisateur (identifiant) : {user.username}\nMot de passe temporaire : {password}\n\nVeuillez vous connecter ici : https://conformed.sn/login\n\nPour des raisons de sécurité, vous devrez changer votre mot de passe à la première connexion.\nVous pouvez le faire directement ici : {reset_url}',
+                from_email=None,  # Utilise DEFAULT_FROM_EMAIL
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+            logger.info(f"Email d'inscription envoyé à {user.email}")
+        except Exception as e:
+            logger.error(f"Erreur lors de l'envoi de l'email à {user.email}: {e}")
+        
         return user
 
 class UserUpdateSerializer(serializers.ModelSerializer):
     """Serializer pour la mise à jour d'utilisateur (admin seulement)"""
-    password = serializers.CharField(write_only=True, required=False, min_length=8)
+    password = serializers.CharField(
+        write_only=True, 
+        required=False, 
+        min_length=8,  # Réduit de 12 à 8 pour le développement
+    )
     password_confirm = serializers.CharField(write_only=True, required=False)
     medecin = serializers.PrimaryKeyRelatedField(queryset=Utilisateur.objects.filter(role='MEDECIN'), required=False, allow_null=True)
     
@@ -86,24 +148,37 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = Utilisateur
         fields = ['username', 'email', 'password', 'password_confirm', 'first_name', 'last_name', 'role', 'specialite', 'is_active', 'medecin']
     
+    def validate_username(self, value):
+        """Valide le nom d'utilisateur"""
+        # Validation simplifiée pour le développement
+        if len(value) < 3:
+            raise serializers.ValidationError("Le nom d'utilisateur doit contenir au moins 3 caractères.")
+        return value.strip()
+    
+    def validate_email(self, value):
+        """Valide l'email"""
+        # Validation simplifiée
+        if '@' not in value or '.' not in value:
+            raise serializers.ValidationError("Veuillez entrer une adresse email valide.")
+        return value.lower().strip()
+    
+    def validate_first_name(self, value):
+        """Valide le prénom"""
+        return value.strip() if value else value
+    
+    def validate_last_name(self, value):
+        """Valide le nom"""
+        return value.strip() if value else value
+    
     def validate(self, attrs):
         if 'password' in attrs and 'password_confirm' in attrs:
             if attrs['password'] != attrs['password_confirm']:
                 raise serializers.ValidationError("Les mots de passe ne correspondent pas.")
         
-        # Empêcher la modification vers le rôle admin via cette interface
-        if attrs.get('role') == 'ADMIN':
-            raise serializers.ValidationError("La modification vers le rôle administrateur n'est pas autorisée via cette interface.")
-        
         return attrs
     
     def update(self, instance, validated_data):
-        print(f"Données reçues pour mise à jour: {validated_data}")  # Debug
-        
-        # Empêcher un admin de se désactiver lui-même
-        if 'is_active' in validated_data and not validated_data['is_active']:
-            if instance.role == 'ADMIN':
-                raise serializers.ValidationError("Un administrateur ne peut pas se désactiver lui-même.")
+        logger.info(f"Données reçues pour mise à jour: {validated_data}")
         
         if 'password_confirm' in validated_data:
             validated_data.pop('password_confirm')
@@ -113,11 +188,11 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         
         for attr, value in validated_data.items():
-            print(f"Mise à jour {attr}: {value}")  # Debug
+            logger.info(f"Mise à jour {attr}: {value}")
             setattr(instance, attr, value)
         
         instance.save()
-        print(f"Utilisateur sauvegardé. is_active: {instance.is_active}")  # Debug
+        logger.info(f"Utilisateur sauvegardé. is_active: {instance.is_active}")
         return instance
 
 # Serializers pour les autres modèles
@@ -270,3 +345,30 @@ class DemandeExportationTraitementSerializer(serializers.ModelSerializer):
                 "Le statut doit être 'APPROUVEE' ou 'REFUSEE'."
             )
         return value 
+
+# Supprimer les serializers de réinitialisation par email
+# Garder seulement les serializers de base 
+
+class ForgotPasswordVerifySerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    username = serializers.CharField()
+
+    def validate(self, data):
+        email = data.get('email')
+        username = data.get('username')
+        user_qs = Utilisateur.objects.filter(email=email, username=username)
+        if not user_qs.exists():
+            raise serializers.ValidationError('Identifiants invalides.')
+        data['user'] = user_qs.first()
+        return data
+
+class ForgotPasswordResetSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    new_password = serializers.CharField(min_length=8)
+    confirm_password = serializers.CharField(min_length=8)
+
+    def validate(self, data):
+        if data['new_password'] != data['confirm_password']:
+            raise serializers.ValidationError('Les mots de passe ne correspondent pas.')
+        # Vérification du token (sera fait dans la vue)
+        return data 
