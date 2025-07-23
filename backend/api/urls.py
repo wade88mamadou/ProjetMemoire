@@ -37,6 +37,11 @@ urlpatterns = [
     path('auth/user/', views.UserDetailView.as_view(), name='user-detail'),
     path('auth/change-password/', views.change_password, name='change-password'),
     
+    # URLs de gestion des sessions sécurisées
+    path('auth/refresh-session/', views.refresh_session, name='refresh-session'),
+    path('auth/session-status/', views.session_status, name='session-status'),
+    path('auth/logout-secure/', views.logout_user, name='logout-secure'),
+    
     # URL de réinitialisation simple de mot de passe (admin seulement)
     path('auth/admin-reset-password/', views.simple_password_reset, name='admin-password-reset'),
     path('auth/forgot-password/verify/', ForgotPasswordVerifyView.as_view(), name='forgot-password-verify'),

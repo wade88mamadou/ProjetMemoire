@@ -3,6 +3,13 @@ import time
 from django.utils.deprecation import MiddlewareMixin
 from django.http import HttpResponseForbidden
 from django.core.cache import cache
+from django.utils import timezone
+from datetime import timedelta
+from django.core.cache import cache
+from django.http import JsonResponse
+from rest_framework import status
+from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 logger = logging.getLogger(__name__)
 security_logger = logging.getLogger('django.security')
@@ -109,3 +116,117 @@ class AuditMiddleware(MiddlewareMixin):
         else:
             ip = request.META.get('REMOTE_ADDR')
         return ip 
+
+class SessionSecurityMiddleware:
+    """
+    Middleware pour la gestion sécurisée des sessions utilisateur
+    - Surveillance de l'activité
+    - Déconnexion automatique après inactivité
+    - Logs de sécurité
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.session_timeout = 60  # 1 minute en secondes
+        self.warning_time = 30     # 30 secondes avant expiration
+        
+    def __call__(self, request):
+        # Ignorer les requêtes non authentifiées
+        if not request.user.is_authenticated:
+            return self.get_response(request)
+        
+        # Vérifier l'activité de session
+        session_key = f"user_activity_{request.user.id}"
+        last_activity = cache.get(session_key)
+        current_time = timezone.now()
+        
+        # Première activité ou mise à jour
+        if not last_activity:
+            cache.set(session_key, current_time, self.session_timeout)
+            logger.info(f"Session démarrée pour l'utilisateur {request.user.username}")
+        else:
+            # Vérifier si la session a expiré
+            time_diff = (current_time - last_activity).total_seconds()
+            
+            if time_diff > self.session_timeout:
+                # Session expirée - déconnexion forcée
+                logger.warning(f"Session expirée pour l'utilisateur {request.user.username} après {time_diff:.1f}s d'inactivité")
+                
+                # Nettoyer le cache
+                cache.delete(session_key)
+                
+                # Réponse d'erreur pour les requêtes API
+                if request.path.startswith('/api/'):
+                    return JsonResponse({
+                        'error': 'Session expirée',
+                        'message': 'Votre session a expiré en raison d\'inactivité. Veuillez vous reconnecter.',
+                        'code': 'SESSION_EXPIRED'
+                    }, status=status.HTTP_401_UNAUTHORIZED)
+                
+                # Redirection pour les autres requêtes
+                from django.shortcuts import redirect
+                from django.contrib.auth import logout
+                logout(request)
+                return redirect('/login?expired=true')
+            
+            # Mettre à jour l'activité
+            cache.set(session_key, current_time, self.session_timeout)
+            
+            # Avertissement si proche de l'expiration
+            if time_diff > self.warning_time:
+                logger.info(f"Session proche de l'expiration pour {request.user.username} ({self.session_timeout - time_diff:.1f}s restant)")
+        
+        response = self.get_response(request)
+        
+        # Ajouter des headers de sécurité
+        response['X-Session-Timeout'] = str(self.session_timeout)
+        response['X-Session-Warning'] = str(self.warning_time)
+        
+        return response
+
+class JWTSecurityMiddleware:
+    """
+    Middleware pour la validation stricte des tokens JWT
+    - Vérification de l'expiration
+    - Blacklist des tokens révoqués
+    - Logs de sécurité
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+    
+    def __call__(self, request):
+        # Vérifier les tokens JWT dans les headers
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        
+        if auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            
+            try:
+                # Valider le token
+                access_token = AccessToken(token)
+                
+                # Vérifier si le token est dans la blacklist
+                jti = access_token.get('jti')
+                if jti and cache.get(f"blacklist_{jti}"):
+                    logger.warning(f"Token JWT blacklisté détecté: {jti}")
+                    return JsonResponse({
+                        'error': 'Token invalide',
+                        'message': 'Ce token a été révoqué.',
+                        'code': 'TOKEN_BLACKLISTED'
+                    }, status=status.HTTP_401_UNAUTHORIZED)
+                
+                # Log de l'activité JWT
+                user_id = access_token.get('user_id')
+                if user_id:
+                    logger.debug(f"Token JWT valide pour l'utilisateur {user_id}")
+                    
+            except (InvalidToken, TokenError) as e:
+                logger.warning(f"Token JWT invalide: {str(e)}")
+                return JsonResponse({
+                    'error': 'Token invalide',
+                    'message': 'Votre token d\'authentification est invalide ou expiré.',
+                    'code': 'INVALID_TOKEN'
+                }, status=status.HTTP_401_UNAUTHORIZED)
+        
+        return self.get_response(request) 

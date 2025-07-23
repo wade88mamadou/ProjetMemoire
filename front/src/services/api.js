@@ -68,7 +68,7 @@ export const authService = {
   // Réinitialisation simple de mot de passe (ancienne méthode, à garder pour compatibilité)
   simplePasswordReset: (data) => api.post('/auth/admin-reset-password/', data),
 
-  // Nouvelle méthode : étape 1 - vérification username uniquement
+  // Nouvelle méthode : étape 1 - vérification username + email
   verifyUsername: (data) => api.post('/auth/verify-username/', data).then(res => res.data),
   // Nouvelle méthode : étape 2 - reset avec token
   simplePasswordResetWithToken: (data) => api.post('/auth/reset-password-token/', data).then(res => res.data),

@@ -69,6 +69,7 @@ from django.conf import settings
 from rest_framework.permissions import AllowAny
 from django.contrib.auth import get_user_model
 import logging
+from rest_framework import serializers
 
 # Configuration du logger
 logger = logging.getLogger(__name__)
@@ -352,6 +353,24 @@ class UserAdminDetailView(generics.RetrieveUpdateDestroyAPIView):
         if self.request.method == 'GET':
             return UserSerializer
         return UserUpdateSerializer
+    
+    def perform_destroy(self, instance):
+        """Supprime définitivement l'utilisateur de la base de données"""
+        logger.info(f"Suppression de l'utilisateur {instance.username} (ID: {instance.id}) par {self.request.user.username}")
+        
+        # Vérifier que l'utilisateur ne se supprime pas lui-même
+        if instance.id == self.request.user.id:
+            raise serializers.ValidationError("Vous ne pouvez pas supprimer votre propre compte.")
+        
+        # Vérifier que ce n'est pas le dernier admin
+        if instance.role == 'ADMIN':
+            admin_count = Utilisateur.objects.filter(role='ADMIN').count()
+            if admin_count <= 1:
+                raise serializers.ValidationError("Impossible de supprimer le dernier administrateur.")
+        
+        # Supprimer définitivement l'utilisateur
+        instance.delete()
+        logger.info(f"Utilisateur {instance.username} supprimé avec succès")
 
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
@@ -2101,42 +2120,164 @@ class VerifyUsernameEmailView(APIView):
 
 class SimplePasswordResetWithTokenView(APIView):
     def post(self, request):
+        import logging
+        logger = logging.getLogger(__name__)
         token = request.data.get('token')
         new_password = request.data.get('new_password')
         confirm_password = request.data.get('confirm_password')
         if not token or token not in TEMP_RESET_TOKENS:
+            logger.warning('Token invalide ou expiré')
             return Response({'detail': 'Token invalide ou expiré.'}, status=400)
         token_data = TEMP_RESET_TOKENS[token]
         if timezone.now() > token_data['expires_at']:
             del TEMP_RESET_TOKENS[token]
+            logger.warning('Token expiré')
             return Response({'detail': 'Token expiré.'}, status=400)
         if new_password != confirm_password:
+            logger.warning('Les mots de passe ne correspondent pas')
             return Response({'detail': 'Les mots de passe ne correspondent pas.'}, status=400)
         if len(new_password) < 8:
+            logger.warning('Le mot de passe doit contenir au moins 8 caractères')
             return Response({'detail': 'Le mot de passe doit contenir au moins 8 caractères.'}, status=400)
         User = get_user_model()
         try:
             user = User.objects.get(id=token_data['user_id'])
         except User.DoesNotExist:
+            logger.error('Utilisateur introuvable')
             return Response({'detail': 'Utilisateur introuvable.'}, status=400)
+        logger.info(f'Avant changement: user={user.username}, hash={user.password}')
         user.set_password(new_password)
         user.save()
+        logger.info(f'Après changement: user={user.username}, hash={user.password}')
         del TEMP_RESET_TOKENS[token]
-        return Response({'detail': 'Mot de passe réinitialisé avec succès.'}, status=200)
+        return Response({'detail': 'Mot de passe réinitialisé avec succès.', 'user_id': user.id, 'password_hash': user.password}, status=200)
 
 class VerifyUsernameView(APIView):
     permission_classes = [AllowAny]
     def post(self, request):
         username = request.data.get('username')
+        email = request.data.get('email')
         User = get_user_model()
+        if not username or not email:
+            return Response({'detail': "Nom d'utilisateur et email requis."}, status=400)
         try:
-            user = User.objects.get(username=username)
+            user = User.objects.get(username=username, email=email)
         except User.DoesNotExist:
-            return Response({'detail': "Nom d'utilisateur invalide."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': "Nom d'utilisateur ou email invalide."}, status=status.HTTP_400_BAD_REQUEST)
         # Générer un token temporaire
         token = str(uuid.uuid4())
+        # Stocker le token avec une expiration (10 min)
         TEMP_RESET_TOKENS[token] = {
             'user_id': user.id,
             'expires_at': timezone.now() + timedelta(minutes=10)
         }
         return Response({'token': token}, status=200)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def refresh_session(request):
+    """Refresh la session utilisateur et renouvelle l'activité"""
+    try:
+        user = request.user
+        current_time = timezone.now()
+        
+        # Mettre à jour l'activité dans le cache
+        session_key = f"user_activity_{user.id}"
+        cache.set(session_key, current_time, 60)  # 1 minute
+        
+        # Générer un nouveau token d'accès
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+        
+        logger.info(f"Session refreshée pour l'utilisateur {user.username}")
+        
+        return Response({
+            'success': True,
+            'message': 'Session refreshée avec succès',
+            'access_token': str(refresh.access_token),
+            'refresh_token': str(refresh),
+            'expires_in': 60,  # 60 secondes
+            'warning_time': 30  # 30 secondes avant expiration
+        })
+        
+    except Exception as e:
+        logger.error(f"Erreur lors du refresh de session: {e}")
+        return Response({
+            'error': 'Erreur lors du refresh de session',
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def session_status(request):
+    """Récupère le statut de la session utilisateur"""
+    try:
+        user = request.user
+        session_key = f"user_activity_{user.id}"
+        last_activity = cache.get(session_key)
+        
+        if not last_activity:
+            return Response({
+                'error': 'Session non trouvée',
+                'message': 'Aucune session active trouvée'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        current_time = timezone.now()
+        time_diff = (current_time - last_activity).total_seconds()
+        time_remaining = max(0, 60 - time_diff)  # 60 secondes max
+        
+        return Response({
+            'session_active': True,
+            'last_activity': last_activity.isoformat(),
+            'time_remaining': time_remaining,
+            'warning_threshold': 30,  # 30 secondes avant avertissement
+            'expiration_threshold': 60  # 60 secondes avant expiration
+        })
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération du statut de session: {e}")
+        return Response({
+            'error': 'Erreur lors de la récupération du statut',
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def logout_user(request):
+    """Déconnexion sécurisée avec nettoyage des sessions"""
+    try:
+        user = request.user
+        
+        # Nettoyer le cache de session
+        session_key = f"user_activity_{user.id}"
+        cache.delete(session_key)
+        
+        # Blacklister le token JWT actuel
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            try:
+                from rest_framework_simplejwt.tokens import AccessToken
+                access_token = AccessToken(token)
+                jti = access_token.get('jti')
+                if jti:
+                    # Ajouter à la blacklist pour 5 minutes
+                    cache.set(f"blacklist_{jti}", True, 300)
+                    logger.info(f"Token JWT blacklisté pour l'utilisateur {user.username}")
+            except Exception as e:
+                logger.warning(f"Impossible de blacklister le token: {e}")
+        
+        # Log de la déconnexion
+        logger.info(f"Déconnexion sécurisée de l'utilisateur {user.username}")
+        
+        return Response({
+            'success': True,
+            'message': 'Déconnexion réussie'
+        })
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la déconnexion: {e}")
+        return Response({
+            'error': 'Erreur lors de la déconnexion',
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

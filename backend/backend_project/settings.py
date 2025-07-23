@@ -56,6 +56,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'api.middleware.SessionSecurityMiddleware',  # Surveillance de l'activité et déconnexion automatique
+    'api.middleware.JWTSecurityMiddleware',      # Validation stricte des tokens JWT
     # 'api.middleware.SecurityMiddleware',  # Middleware de sécurité personnalisé - temporairement désactivé
     # 'api.middleware.AuditMiddleware',     # Middleware d'audit - temporairement désactivé
     # 'axes.middleware.AxesMiddleware',     # Protection contre les attaques par force brute - désactivé
@@ -189,10 +191,10 @@ REST_FRAMEWORK = {
     # 'EXCEPTION_HANDLER': 'api.exceptions.custom_exception_handler',  # Temporairement désactivé
 }
 
-# JWT Settings
+# JWT Settings - Politique de sécurité stricte pour données médicales
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),  # 1 minute d'inactivité
+    'REFRESH_TOKEN_LIFETIME': timedelta(minutes=3),  # 3 minutes pour refresh
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
@@ -213,8 +215,8 @@ SIMPLE_JWT = {
     'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
     'JTI_CLAIM': 'jti',
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
-    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=1),  # 1 minute
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(minutes=2),  # 2 minutes
 }
 
 # CORS configuration pour la communication avec React
@@ -280,9 +282,9 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'votre_email@gmail.com'  # Remplacez par votre email
-EMAIL_HOST_PASSWORD = 'votre_mot_de_passe_app'  # Utilisez un mot de passe d'application Gmail
-DEFAULT_FROM_EMAIL = 'admin@conformed.sn'
+EMAIL_HOST_USER = 'mamadouwade944@gmail.com'  # Ton email Gmail
+EMAIL_HOST_PASSWORD = 'tljl jqiv oecd qbji'  # Ton mot de passe d'application Gmail
+DEFAULT_FROM_EMAIL = 'mamadouwade944@gmail.com'
 
 # URL du frontend pour les liens de réinitialisation
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
@@ -357,13 +359,15 @@ CACHES = {
     }
 }
 
-# Configuration des sessions
+# Configuration des sessions - Politique de sécurité stricte
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
-SESSION_COOKIE_AGE = 3600  # 1 heure
+SESSION_COOKIE_AGE = 60  # 1 minute (60 secondes)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = 'Strict'  
+SESSION_COOKIE_SECURE = not DEBUG  # HTTPS en production
+SESSION_SAVE_EVERY_REQUEST = True  # Mise à jour à chaque requête
 
 
 

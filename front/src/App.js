@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { SessionProvider } from './contexts/SessionContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import SecureNavigation from './components/SecureNavigation';
 
@@ -26,122 +27,124 @@ import AboutPage from './pages/AboutPage';
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="App">
-          <SecureNavigation />
-          <Routes>
-            {/* Routes publiques */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/simple-reset" element={<SimpleResetPage />} />
-            <Route path="/unauthorized" element={<UnauthorizedPage />} />
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <DashboardRedirect />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* Routes protégées par rôle */}
-            <Route 
-              path="/admin/dashboard" 
-              element={
-                <ProtectedRoute requiredRole="ADMIN">
-                  <DashboardAdmin />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/medecin/dashboard" 
-              element={
-                <ProtectedRoute requiredRole="MEDECIN">
-                  <DashboardMedecin />
-                </ProtectedRoute>
-              } 
-            />
-            
-            <Route 
-              path="/user/dashboard" 
-              element={
-                <ProtectedRoute requiredRole="user_simple">
-                  <DashboardUserSimple />
-                </ProtectedRoute>
-              } 
-            />
+      <SessionProvider>
+        <Router>
+          <div className="App">
+            <SecureNavigation />
+            <Routes>
+              {/* Routes publiques */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/contact" element={<ContactPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/simple-reset" element={<SimpleResetPage />} />
+              <Route path="/unauthorized" element={<UnauthorizedPage />} />
+              <Route 
+                path="/dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <DashboardRedirect />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              {/* Routes protégées par rôle */}
+              <Route 
+                path="/admin/dashboard" 
+                element={
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <DashboardAdmin />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/medecin/dashboard" 
+                element={
+                  <ProtectedRoute requiredRole="MEDECIN">
+                    <DashboardMedecin />
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/user/dashboard" 
+                element={
+                  <ProtectedRoute requiredRole="user_simple">
+                    <DashboardUserSimple />
+                  </ProtectedRoute>
+                } 
+              />
 
-            <Route 
-              path="/admin/users" 
-              element={
-                <ProtectedRoute requiredRole="ADMIN">
-                  <AdminUserManagement />
-                </ProtectedRoute>
-              } 
-            />
+              <Route 
+                path="/admin/users" 
+                element={
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <AdminUserManagement />
+                  </ProtectedRoute>
+                } 
+              />
 
-            <Route 
-              path="/import-data" 
-              element={
-                <ProtectedRoute requiredRole={["ADMIN", "MEDECIN"]}>
-                  <ImportDataPage />
-                </ProtectedRoute>
-              } 
-            />
+              <Route 
+                path="/import-data" 
+                element={
+                  <ProtectedRoute requiredRole={["ADMIN", "MEDECIN"]}>
+                    <ImportDataPage />
+                  </ProtectedRoute>
+                } 
+              />
 
-            <Route 
-              path="/user/mes-demandes-exportation" 
-              element={
-                <ProtectedRoute requiredRole="user_simple">
-                  <MesDemandesExportation />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/medecin/demandes-exportation" 
-              element={
-                <ProtectedRoute requiredRole="MEDECIN">
-                  <DemandesExportationMedecin />
-                </ProtectedRoute>
-              } 
-            />
+              <Route 
+                path="/user/mes-demandes-exportation" 
+                element={
+                  <ProtectedRoute requiredRole="user_simple">
+                    <MesDemandesExportation />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/medecin/demandes-exportation" 
+                element={
+                  <ProtectedRoute requiredRole="MEDECIN">
+                    <DemandesExportationMedecin />
+                  </ProtectedRoute>
+                } 
+              />
 
-            <Route 
-              path="/alertes-critiques" 
-              element={
-                <ProtectedRoute requiredRole="ADMIN">
-                  <AlertesCritiques />
-                </ProtectedRoute>
-              } 
-            />
+              <Route 
+                path="/alertes-critiques" 
+                element={
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <AlertesCritiques />
+                  </ProtectedRoute>
+                } 
+              />
 
-            <Route 
-              path="/config-alertes-securite" 
-              element={
-                <ProtectedRoute requiredRole="ADMIN">
-                  <ConfigAlertesSecurite />
-                </ProtectedRoute>
-              } 
-            />
+              <Route 
+                path="/config-alertes-securite" 
+                element={
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <ConfigAlertesSecurite />
+                  </ProtectedRoute>
+                } 
+              />
 
-            <Route 
-              path="/admin/rapport-audit" 
-              element={
-                <ProtectedRoute requiredRole="ADMIN">
-                  <RapportAudit />
-                </ProtectedRoute>
-              } 
-            />
+              <Route 
+                path="/admin/rapport-audit" 
+                element={
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <RapportAudit />
+                  </ProtectedRoute>
+                } 
+              />
 
-            
-            {/* Route par défaut - redirige vers l'accueil */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </div>
-      </Router>
+              
+              {/* Route par défaut - redirige vers l'accueil */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </div>
+        </Router>
+      </SessionProvider>
     </AuthProvider>
   );
 }

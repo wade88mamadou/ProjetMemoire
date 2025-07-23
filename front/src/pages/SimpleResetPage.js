@@ -6,7 +6,7 @@ const SimpleResetPage = () => {
   // État pour l'étape du formulaire
   const [step, setStep] = useState(1);
   // Formulaire étape 1
-  const [verifyData, setVerifyData] = useState({ username: '', confirm_username: '' });
+  const [verifyData, setVerifyData] = useState({ username: '', email: '' });
   // Formulaire étape 2
   const [passwordData, setPasswordData] = useState({ new_password: '', confirm_password: '' });
   // Token temporaire
@@ -32,21 +32,17 @@ const SimpleResetPage = () => {
     setPasswordData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Soumission étape 1 : vérification username
+  // Soumission étape 1 : vérification username + email
   const handleVerifySubmit = async (e) => {
     e.preventDefault();
-    if (verifyData.username !== verifyData.confirm_username) {
-      setError('Les noms d\'utilisateur ne correspondent pas.');
-      return;
-    }
     setIsLoading(true);
     setError('');
     try {
-      const res = await authService.verifyUsername({ username: verifyData.username });
+      const res = await authService.verifyUsername({ username: verifyData.username, email: verifyData.email });
       setResetToken(res.token);
       setStep(2);
     } catch (err) {
-      setError(err.response?.data?.detail || "Nom d'utilisateur invalide.");
+      setError(err.response?.data?.detail || "Nom d'utilisateur ou email invalide.");
     } finally {
       setIsLoading(false);
     }
@@ -149,19 +145,19 @@ const SimpleResetPage = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="confirm_username" className="block text-sm font-medium text-gray-700 mb-2">
-                    Confirmer le nom d'utilisateur
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    Email associé
                   </label>
                   <input
-                    id="confirm_username"
-                    name="confirm_username"
-                    type="text"
-                    autoComplete="username"
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
                     required
-                    value={verifyData.confirm_username}
+                    value={verifyData.email}
                     onChange={handleVerifyChange}
                     className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                    placeholder="Confirmez votre nom d'utilisateur"
+                    placeholder="Entrez votre email associé"
                   />
                 </div>
                 <div>
