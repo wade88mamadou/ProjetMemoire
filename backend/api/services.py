@@ -227,3 +227,130 @@ class AuditTrailService:
         except Exception as e:
             logger.error(f"Erreur lors de l'enregistrement de la modification: {e}")
             return None 
+        
+class ConformiteAlertService:
+    """
+    Service pour la gestion des alertes de conformité RGPD, HIPAA, CDP
+    """
+
+    @staticmethod
+    def alerte_acces_non_autorise(utilisateur, donnees_concernees):
+        from .models import Alerte
+        message = f"Accès non autorisé détecté par {utilisateur.username} sur {donnees_concernees} - RGPD"
+        return Alerte.objects.create(
+            typeAlerte="Accès non autorisé",
+            message=message,
+            dateAlerte=timezone.now().date(),
+            gravite="critique",
+            notifie_cdp=True,
+            utilisateur=utilisateur,
+            donnees_concernees=donnees_concernees,
+            norme_concernee="RGPD"
+        )
+
+    @staticmethod
+    def alerte_export_massif(utilisateur, nb_dossiers):
+        from .models import Alerte
+        message = f"Export massif de {nb_dossiers} dossiers par {utilisateur.username} - RGPD"
+        return Alerte.objects.create(
+            typeAlerte="Export massif de données",
+            message=message,
+            dateAlerte=timezone.now().date(),
+            gravite="warning",
+            notifie_cdp=True,
+            utilisateur=utilisateur,
+            donnees_concernees=f"{nb_dossiers} dossiers",
+            norme_concernee="RGPD"
+        )
+
+    @staticmethod
+    def alerte_modification_consentement(utilisateur, patient):
+        from .models import Alerte
+        message = f"Modification du consentement patient {patient.id} par {utilisateur.username} - RGPD"
+        return Alerte.objects.create(
+            typeAlerte="Modification consentement",
+            message=message,
+            dateAlerte=timezone.now().date(),
+            gravite="info",
+            notifie_cdp=True,
+            utilisateur=utilisateur,
+            donnees_concernees=f"Patient: {patient.id}",
+            norme_concernee="RGPD"
+        )
+    
+        # --- HIPAA ---
+    @staticmethod
+    def alerte_acces_hors_horaire(utilisateur, donnees_concernees, heure_acces):
+        from .models import Alerte
+        message = f"Accès hors horaire autorisé ({heure_acces}) par {utilisateur.username} sur {donnees_concernees} - HIPAA"
+        return Alerte.objects.create(
+            typeAlerte="Accès hors horaire",
+            message=message,
+            dateAlerte=timezone.now().date(),
+            gravite="warning",
+            notifie_cdp=True,
+            utilisateur=utilisateur,
+            donnees_concernees=donnees_concernees,
+            norme_concernee="HIPAA"
+        )
+
+    @staticmethod
+    def alerte_consultation_excessive(utilisateur, nb_dossiers, periode):
+        from .models import Alerte
+        message = f"Consultation excessive de {nb_dossiers} dossiers en {periode} par {utilisateur.username} - HIPAA"
+        return Alerte.objects.create(
+            typeAlerte="Consultation excessive",
+            message=message,
+            dateAlerte=timezone.now().date(),
+            gravite="warning",
+            notifie_cdp=True,
+            utilisateur=utilisateur,
+            donnees_concernees=f"{nb_dossiers} dossiers en {periode}",
+            norme_concernee="HIPAA"
+        )
+
+    @staticmethod
+    def alerte_modification_donnee_sensible(utilisateur, champ_modifie, objet_modifie):
+        from .models import Alerte
+        message = f"Modification de donnée sensible ({champ_modifie}) sur {objet_modifie} par {utilisateur.username} - HIPAA"
+        return Alerte.objects.create(
+            typeAlerte="Modification donnée sensible",
+            message=message,
+            dateAlerte=timezone.now().date(),
+            gravite="info",
+            notifie_cdp=True,
+            utilisateur=utilisateur,
+            donnees_concernees=f"{champ_modifie} sur {objet_modifie}",
+            norme_concernee="HIPAA"
+        )
+
+    # --- CDP ---
+    @staticmethod
+    def alerte_non_respect_regle_interne(utilisateur, regle, donnees_concernees):
+        from .models import Alerte
+        message = f"Non-respect de la règle interne ({regle}) par {utilisateur.username} sur {donnees_concernees} - CDP"
+        return Alerte.objects.create(
+            typeAlerte="Non-respect règle interne",
+            message=message,
+            dateAlerte=timezone.now().date(),
+            gravite="critique",
+            notifie_cdp=True,
+            utilisateur=utilisateur,
+            donnees_concernees=donnees_concernees,
+            norme_concernee="CDP"
+        )
+
+    @staticmethod
+    def alerte_suppression_donnee(utilisateur, objet_supprime):
+        from .models import Alerte
+        message = f"Suppression de donnée ({objet_supprime}) par {utilisateur.username} - CDP"
+        return Alerte.objects.create(
+            typeAlerte="Suppression de donnée",
+            message=message,
+            dateAlerte=timezone.now().date(),
+            gravite="warning",
+            notifie_cdp=True,
+            utilisateur=utilisateur,
+            donnees_concernees=f"{objet_supprime}",
+            norme_concernee="CDP"
+        )

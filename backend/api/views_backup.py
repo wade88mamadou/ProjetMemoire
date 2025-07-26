@@ -59,7 +59,7 @@ from django.http import HttpResponse
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
-
+from .services import ConformiteAlertService 
 # Create your views here.
 
 @api_view(['GET'])
@@ -2004,3 +2004,97 @@ def simple_password_reset(request):
         return Response({
             'error': 'Erreur lors de la réinitialisation du mot de passe.'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+# --- RGPD : Accès non autorisé ---
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def signaler_acces_non_autorise(request):
+    data = request.data
+    utilisateur = request.user
+    cible = data.get('cible')
+    raison = data.get('raison', 'Accès non autorisé détecté')
+    alerte = ConformiteAlertService.alerte_acces_non_autorise(utilisateur, cible)
+    return Response(AlerteSerializer(alerte).data)
+
+# --- RGPD : Export massif de données ---
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def export_patients_csv(request):
+    patients = Patient.objects.all()
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="patients.csv"'
+    writer = csv.writer(response)
+    writer.writerow([
+        'ID Patient', 'Dossier résumé', 'Dossier date', 'Analyses', 'Résultats', 'Infections', 'Vaccins', 'Données médicales'
+    ])
+    for patient in patients:
+        # ...existing code...
+        pass
+    # Déclenche l’alerte RGPD si le nombre de patients exportés est élevé
+    if patients.count() > 100:  # seuil à adapter
+        ConformiteAlertService.alerte_export_massif(request.user, patients.count())
+    return response
+
+# --- RGPD : Modification consentement ---
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def modifier_consentement_patient(request, patient_id):
+    patient = get_object_or_404(Patient, pk=patient_id)
+    # ...modification du consentement...
+    ConformiteAlertService.alerte_modification_consentement(request.user, patient)
+    return Response({'success': True})
+
+# --- HIPAA : Accès hors horaire ---
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def consultation_dossier(request, dossier_id):
+    dossier = get_object_or_404(DossierMedical, pk=dossier_id)
+    from datetime import datetime
+    heure_acces = datetime.now().hour
+    if heure_acces < 7 or heure_acces > 20:  # exemple d’horaires autorisés
+        ConformiteAlertService.alerte_acces_hors_horaire(request.user, dossier_id, heure_acces)
+    # ...existing code...
+    return Response(DossierMedicalSerializer(dossier).data)
+
+# --- HIPAA : Consultation excessive ---
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def consultation_excessive(request):
+    user = request.user
+    periode = '1h'
+    nb_dossiers = DossierMedical.objects.filter(...).count()  # à adapter selon la logique métier
+    if nb_dossiers > 50:  # seuil à adapter
+        ConformiteAlertService.alerte_consultation_excessive(user, nb_dossiers, periode)
+    # ...existing code...
+    return Response({'success': True})
+
+# --- HIPAA : Modification donnée sensible ---
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def modifier_donnee_sensible(request, dossier_id):
+    dossier = get_object_or_404(DossierMedical, pk=dossier_id)
+    champ_modifie = request.data.get('champ')
+    objet_modifie = dossier_id
+    # ...modification...
+    ConformiteAlertService.alerte_modification_donnee_sensible(request.user, champ_modifie, objet_modifie)
+    return Response({'success': True})
+
+# --- CDP : Non-respect règle interne ---
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def signaler_non_respect_regle(request):
+    user = request.user
+    regle = request.data.get('regle')
+    donnees = request.data.get('donnees')
+    ConformiteAlertService.alerte_non_respect_regle_interne(user, regle, donnees)
+    return Response({'success': True})
+
+# --- CDP : Suppression de données ---
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def supprimer_dossier(request, dossier_id):
+    dossier = get_object_or_404(DossierMedical, pk=dossier_id)
+    dossier.delete()
+    ConformiteAlertService.alerte_suppression_donnee(request.user, f"DossierMedical #{dossier_id}")
+    return Response({'success': True})

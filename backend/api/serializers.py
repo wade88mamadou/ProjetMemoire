@@ -13,7 +13,7 @@ from .models import (
     Utilisateur, Patient, Profession, Logement, Residence, Comportement,
     DossierMedical, Rapport, Vaccin, Infection, RegleConformite,
     ParametreConformite, Alerte, Analyse, ResultatAnalyse, Alimentation, Acces,
-    DemandeExportation
+    DemandeExportation, TypeAlerteConformite, AlerteConformite, RegleAlerteConformite, NotificationConformite, AuditConformite
 )
 
 #classe serializer
@@ -372,3 +372,111 @@ class ForgotPasswordResetSerializer(serializers.Serializer):
             raise serializers.ValidationError('Les mots de passe ne correspondent pas.')
         # Vérification du token (sera fait dans la vue)
         return data 
+
+# ===================== SÉRIALISEURS ALERTES DE CONFORMITÉ =====================
+
+class TypeAlerteConformiteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TypeAlerteConformite
+        fields = '__all__'
+
+class AlerteConformiteSerializer(serializers.ModelSerializer):
+    type_alerte = TypeAlerteConformiteSerializer(read_only=True)
+    type_alerte_id = serializers.PrimaryKeyRelatedField(
+        queryset=TypeAlerteConformite.objects.all(),
+        source='type_alerte',
+        write_only=True
+    )
+    utilisateur_origine = UserSerializer(read_only=True)
+    utilisateur_traitement = UserSerializer(read_only=True)
+    dossier = DossierMedicalSerializer(read_only=True)
+    patient = PatientSerializer(read_only=True)
+    
+    class Meta:
+        model = AlerteConformite
+        fields = '__all__'
+        read_only_fields = ['date_creation', 'date_modification', 'date_resolution']
+
+class RegleAlerteConformiteSerializer(serializers.ModelSerializer):
+    type_alerte = TypeAlerteConformiteSerializer(read_only=True)
+    type_alerte_id = serializers.PrimaryKeyRelatedField(
+        queryset=TypeAlerteConformite.objects.all(),
+        source='type_alerte',
+        write_only=True
+    )
+    
+    class Meta:
+        model = RegleAlerteConformite
+        fields = '__all__'
+        read_only_fields = ['date_creation', 'date_modification']
+
+class NotificationConformiteSerializer(serializers.ModelSerializer):
+    alerte = AlerteConformiteSerializer(read_only=True)
+    destinataire = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = NotificationConformite
+        fields = '__all__'
+        read_only_fields = ['date_creation', 'date_envoi', 'date_lecture']
+
+class AuditConformiteSerializer(serializers.ModelSerializer):
+    utilisateur = UserSerializer(read_only=True)
+    alerte_generee = AlerteConformiteSerializer(read_only=True)
+    
+    class Meta:
+        model = AuditConformite
+        fields = '__all__'
+        read_only_fields = ['date_action']
+
+# Sérialiseurs pour les statistiques de conformité
+class StatistiquesConformiteSerializer(serializers.Serializer):
+    total_alertes = serializers.IntegerField()
+    alertes_nouvelles = serializers.IntegerField()
+    alertes_en_cours = serializers.IntegerField()
+    alertes_resolues = serializers.IntegerField()
+    alertes_critiques = serializers.IntegerField()
+    alertes_urgentes = serializers.IntegerField()
+    
+    # Par norme de conformité
+    alertes_rgpd = serializers.IntegerField()
+    alertes_hipaa = serializers.IntegerField()
+    alertes_cdp = serializers.IntegerField()
+    
+    # Par niveau de criticité
+    niveau_faible = serializers.IntegerField()
+    niveau_moyen = serializers.IntegerField()
+    niveau_eleve = serializers.IntegerField()
+    niveau_critique = serializers.IntegerField()
+    niveau_urgent = serializers.IntegerField()
+    
+    # Tendances
+    alertes_7_jours = serializers.IntegerField()
+    alertes_30_jours = serializers.IntegerField()
+    temps_moyen_resolution = serializers.FloatField()
+    
+    # Conformité
+    taux_conformite_rgpd = serializers.FloatField()
+    taux_conformite_hipaa = serializers.FloatField()
+    taux_conformite_cdp = serializers.FloatField()
+
+# Sérialiseur pour la configuration des alertes
+class ConfigurationAlertesSerializer(serializers.Serializer):
+    # Paramètres généraux
+    activation_surveillance = serializers.BooleanField(default=True)
+    delai_notification_defaut = serializers.IntegerField(default=24)
+    escalation_automatique = serializers.BooleanField(default=True)
+    
+    # Seuils de déclenchement
+    seuil_acces_non_autorise = serializers.IntegerField(default=3)
+    seuil_consultation_excessive = serializers.IntegerField(default=50)
+    seuil_modification_non_autorisee = serializers.IntegerField(default=2)
+    
+    # Notifications
+    notifier_admin_par_defaut = serializers.BooleanField(default=True)
+    notifier_dpo_par_defaut = serializers.BooleanField(default=False)
+    notifier_cdp_par_defaut = serializers.BooleanField(default=False)
+    
+    # Actions automatiques
+    bloquer_acces_automatique = serializers.BooleanField(default=False)
+    fermer_session_automatique = serializers.BooleanField(default=False)
+    logger_toutes_actions = serializers.BooleanField(default=True) 

@@ -70,7 +70,7 @@ from rest_framework.permissions import AllowAny
 from django.contrib.auth import get_user_model
 import logging
 from rest_framework import serializers
-
+from .services import ConformiteAlertService
 # Configuration du logger
 logger = logging.getLogger(__name__)
 
@@ -85,8 +85,13 @@ def accueil(request):
     return HttpResponse("Bienvenue sur l'API du Dashboard !")
 
 class PatientViewSet(AuditAccessMixin, viewsets.ModelViewSet):
-    queryset = Patient.objects.all()
     serializer_class = PatientSerializer
+    
+    def get_queryset(self):
+        return Patient.objects.select_related(
+            'profession', 'residence', 'logement', 
+            'comportement', 'alimentation'
+        ).all()
     
     def perform_create(self, serializer):
         """Override pour ajouter la détection automatique des seuils"""
@@ -152,8 +157,14 @@ class UtilisateurViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAdminUser]
 
 class DossierMedicalViewSet(AuditAccessMixin, viewsets.ModelViewSet):
-    queryset = DossierMedical.objects.all()
     serializer_class = DossierMedicalSerializer
+    
+    def get_queryset(self):
+        return DossierMedical.objects.select_related(
+            'patient__profession', 'patient__residence'
+        ).prefetch_related(
+            'analyse_set', 'alerte_set', 'vaccin_set', 'infection_set'
+        ).all()
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -186,8 +197,12 @@ class ParametreConformiteViewSet(viewsets.ModelViewSet):
     serializer_class = ParametreConformiteSerializer
 
 class AlerteViewSet(viewsets.ModelViewSet):
-    queryset = Alerte.objects.all()
     serializer_class = AlerteSerializer
+    
+    def get_queryset(self):
+        return Alerte.objects.select_related(
+            'dossier__patient', 'utilisateur'
+        ).order_by('-dateAlerte', '-idAlerte')
 
 class AnalyseViewSet(viewsets.ModelViewSet):
     queryset = Analyse.objects.all()
@@ -895,6 +910,57 @@ def patient_statistics(request):
             'total_patients': total_patients,
             'patients_with_dossiers': patients_with_dossiers,
             'patients_without_dossiers': total_patients - patients_with_dossiers
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def tableau_bord(request):
+    """Endpoint pour le tableau de bord principal"""
+    try:
+        # Statistiques générales
+        total_patients = Patient.objects.count()
+        total_dossiers = DossierMedical.objects.count()
+        total_alertes = Alerte.objects.count()
+        total_utilisateurs = Utilisateur.objects.count()
+        
+        # Statistiques par rôle
+        admins = Utilisateur.objects.filter(role='ADMIN').count()
+        medecins = Utilisateur.objects.filter(role='MEDECIN').count()
+        users_simples = Utilisateur.objects.filter(role='user_simple').count()
+        
+        # Alertes récentes (7 derniers jours)
+        date_limite = timezone.now().date() - timedelta(days=7)
+        alertes_recentes = Alerte.objects.filter(dateAlerte__gte=date_limite).count()
+        
+        # Dossiers créés récemment
+        dossiers_recents = DossierMedical.objects.filter(dateCreation__gte=date_limite).count()
+        
+        # Statistiques de conformité
+        regles_actives = RegleConformite.objects.filter(is_active=True).count()
+        demandes_en_attente = DemandeExportation.objects.filter(statut='EN_ATTENTE').count()
+        
+        return Response({
+            'statistiques_generales': {
+                'total_patients': total_patients,
+                'total_dossiers': total_dossiers,
+                'total_alertes': total_alertes,
+                'total_utilisateurs': total_utilisateurs,
+            },
+            'utilisateurs_par_role': {
+                'admins': admins,
+                'medecins': medecins,
+                'users_simples': users_simples,
+            },
+            'activite_recente': {
+                'alertes_7_jours': alertes_recentes,
+                'dossiers_7_jours': dossiers_recents,
+            },
+            'conformite': {
+                'regles_actives': regles_actives,
+                'demandes_en_attente': demandes_en_attente,
+            }
         })
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -2281,3 +2347,98 @@ def logout_user(request):
             'error': 'Erreur lors de la déconnexion',
             'message': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+        
+    # --- RGPD : Accès non autorisé ---
+    @api_view(['POST'])
+    @permission_classes([IsAuthenticated])
+    def signaler_acces_non_autorise(request):
+        data = request.data
+        utilisateur = request.user
+        cible = data.get('cible')
+        raison = data.get('raison', 'Accès non autorisé détecté')
+        alerte = ConformiteAlertService.alerte_acces_non_autorise(utilisateur, cible)
+        return Response(AlerteSerializer(alerte).data)
+
+    # --- RGPD : Export massif de données ---
+    @api_view(['GET'])
+    @permission_classes([IsAuthenticated])
+    def export_patients_csv(request):
+        patients = Patient.objects.all()
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="patients.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'ID Patient', 'Dossier résumé', 'Dossier date', 'Analyses', 'Résultats', 'Infections', 'Vaccins', 'Données médicales'
+        ])
+        for patient in patients:
+            # ...existing code...
+            pass
+        # Déclenche l’alerte RGPD si le nombre de patients exportés est élevé
+        if patients.count() > 100:  # seuil à adapter
+            ConformiteAlertService.alerte_export_massif(request.user, patients.count())
+        return response
+
+    # --- RGPD : Modification consentement ---
+    @api_view(['POST'])
+    @permission_classes([IsAuthenticated])
+    def modifier_consentement_patient(request, patient_id):
+        patient = get_object_or_404(Patient, pk=patient_id)
+        # ...modification du consentement...
+        ConformiteAlertService.alerte_modification_consentement(request.user, patient)
+        return Response({'success': True})
+
+    # --- HIPAA : Accès hors horaire ---
+    @api_view(['GET'])
+    @permission_classes([IsAuthenticated])
+    def consultation_dossier(request, dossier_id):
+        dossier = get_object_or_404(DossierMedical, pk=dossier_id)
+        from datetime import datetime
+        heure_acces = datetime.now().hour
+        if heure_acces < 7 or heure_acces > 20:  # exemple d’horaires autorisés
+            ConformiteAlertService.alerte_acces_hors_horaire(request.user, dossier_id, heure_acces)
+        # ...existing code...
+        return Response(DossierMedicalSerializer(dossier).data)
+
+    # --- HIPAA : Consultation excessive ---
+    @api_view(['GET'])
+    @permission_classes([IsAuthenticated])
+    def consultation_excessive(request):
+        user = request.user
+        periode = '1h'
+        nb_dossiers = DossierMedical.objects.filter(...).count()  # à adapter selon la logique métier
+        if nb_dossiers > 50:  # seuil à adapter
+            ConformiteAlertService.alerte_consultation_excessive(user, nb_dossiers, periode)
+        # ...existing code...
+        return Response({'success': True})
+
+    # --- HIPAA : Modification donnée sensible ---
+    @api_view(['POST'])
+    @permission_classes([IsAuthenticated])
+    def modifier_donnee_sensible(request, dossier_id):
+        dossier = get_object_or_404(DossierMedical, pk=dossier_id)
+        champ_modifie = request.data.get('champ')
+        objet_modifie = dossier_id
+        # ...modification...
+        ConformiteAlertService.alerte_modification_donnee_sensible(request.user, champ_modifie, objet_modifie)
+        return Response({'success': True})
+
+    # --- CDP : Non-respect règle interne ---
+    @api_view(['POST'])
+    @permission_classes([IsAuthenticated])
+    def signaler_non_respect_regle(request):
+        user = request.user
+        regle = request.data.get('regle')
+        donnees = request.data.get('donnees')
+        ConformiteAlertService.alerte_non_respect_regle_interne(user, regle, donnees)
+        return Response({'success': True})
+
+    # --- CDP : Suppression de données ---
+    @api_view(['DELETE'])
+    @permission_classes([IsAuthenticated])
+    def supprimer_dossier(request, dossier_id):
+        dossier = get_object_or_404(DossierMedical, pk=dossier_id)
+        dossier.delete()
+        ConformiteAlertService.alerte_suppression_donnee(request.user, f"DossierMedical #{dossier_id}")
+        return Response({'success': True})

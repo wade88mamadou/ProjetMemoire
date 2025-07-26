@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
 from .views import ImportCSVView, tester_detection_seuils, mes_patients, export_patients_pdf, export_patient_pdf, export_patients_csv, export_patient_csv, ForgotPasswordVerifyView, ForgotPasswordResetView, VerifyUsernameEmailView, SimplePasswordResetWithTokenView, VerifyUsernameView
+from . import views_conformite
 
 router = DefaultRouter()
 router.register(r'patients', views.PatientViewSet)
@@ -22,6 +23,13 @@ router.register(r'resultats-analyse', views.ResultatAnalyseViewSet)
 router.register(r'alimentations', views.AlimentationViewSet)
 router.register(r'acces', views.AccesViewSet)
 router.register(r'demandes-exportation', views.DemandeExportationViewSet, basename='demande-exportation')
+
+# Alertes de conformité
+router.register(r'types-alertes-conformite', views_conformite.TypeAlerteConformiteViewSet)
+router.register(r'alertes-conformite', views_conformite.AlerteConformiteViewSet, basename='alerte-conformite')
+router.register(r'regles-alertes-conformite', views_conformite.RegleAlerteConformiteViewSet)
+router.register(r'notifications-conformite', views_conformite.NotificationConformiteViewSet, basename='notification-conformite')
+router.register(r'audit-conformite', views_conformite.AuditConformiteViewSet)
 
 urlpatterns = [
     # Test de connexion
@@ -59,6 +67,7 @@ urlpatterns = [
     
     # URLs de statistiques
     path('patient-statistics/', views.patient_statistics, name='patient-statistics'),
+    path('tableau-bord/', views.tableau_bord, name='tableau-bord'),
     
     # URLs des demandes d'exportation
     path('mes-demandes-exportation/', views.mes_demandes_exportation, name='mes-demandes-exportation'),
@@ -89,6 +98,16 @@ urlpatterns = [
     path('export/dossier-medical-pdf/<int:dossier_id>/', views.ExportDossierMedicalPDFView.as_view(), name='export-dossier-medical-pdf'),
     path('export/resultats-analyse-pdf/<int:analyse_id>/', views.ExportResultatsAnalysePDFView.as_view(), name='export-resultats-analyse-pdf'),
     path('rapport-audit/', views.rapport_audit, name='rapport-audit'),
+    
+    # URLs Alertes de conformité
+    path('conformite/initialiser-types-alertes/', views_conformite.initialiser_types_alertes, name='initialiser-types-alertes'),
+    path('conformite/surveillance/', views_conformite.executer_surveillance_conformite, name='executer-surveillance-conformite'),
+    path('conformite/alertes-critiques/', views_conformite.alertes_conformite_critiques, name='alertes-conformite-critiques'),
+    path('conformite/statistiques-detaillees/', views_conformite.statistiques_conformite_detaillees, name='statistiques-conformite-detaillees'),
+    path('conformite/configurer/', views_conformite.configurer_alertes_conformite, name='configurer-alertes-conformite'),
+    path('conformite/configuration/', views_conformite.obtenir_configuration_alertes, name='obtenir-configuration-alertes'),
+    path('conformite/rapport/', views_conformite.rapport_conformite, name='rapport-conformite'),
+    
     path('', include(router.urls)),
 ] 
 urlpatterns += [

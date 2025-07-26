@@ -1,0 +1,118 @@
+{
+  "success": [
+    {
+      "test": "Configuration Django",
+      "details": "Tous les paramètres critiques sont définis",
+      "timestamp": "2025-07-26T01:46:03.590738"
+    },
+    {
+      "test": "Modèle Utilisateur",
+      "details": "11 enregistrements",
+      "timestamp": "2025-07-26T01:46:03.836037"
+    },
+    {
+      "test": "Modèle Patient",
+      "details": "470 enregistrements",
+      "timestamp": "2025-07-26T01:46:03.849209"
+    },
+    {
+      "test": "Modèle DossierMedical",
+      "details": "470 enregistrements",
+      "timestamp": "2025-07-26T01:46:03.855821"
+    },
+    {
+      "test": "Modèle Alerte",
+      "details": "167 enregistrements",
+      "timestamp": "2025-07-26T01:46:03.866004"
+    },
+    {
+      "test": "Modèle RegleConformite",
+      "details": "2 enregistrements",
+      "timestamp": "2025-07-26T01:46:03.872225"
+    },
+    {
+      "test": "Modèle DemandeExportation",
+      "details": "4 enregistrements",
+      "timestamp": "2025-07-26T01:46:03.882011"
+    },
+    {
+      "test": "API Test connexion",
+      "details": "Endpoint accessible",
+      "timestamp": "2025-07-26T01:46:05.946463"
+    },
+    {
+      "test": "API /api/patients/",
+      "details": "Status: 401",
+      "timestamp": "2025-07-26T01:46:07.973314"
+    },
+    {
+      "test": "API /api/dossiers-medicaux/",
+      "details": "Status: 401",
+      "timestamp": "2025-07-26T01:46:10.013862"
+    },
+    {
+      "test": "API /api/alertes/",
+      "details": "Status: 401",
+      "timestamp": "2025-07-26T01:46:12.055855"
+    },
+    {
+      "test": "API /api/regles-conformite/",
+      "details": "Status: 401",
+      "timestamp": "2025-07-26T01:46:14.095876"
+    },
+    {
+      "test": "Sécurité CORS",
+      "details": "Headers CORS présents",
+      "timestamp": "2025-07-26T01:46:18.674083"
+    },
+    {
+      "test": "Sécurité HTTPS",
+      "details": "Mode développement - HTTP autorisé",
+      "timestamp": "2025-07-26T01:46:18.674342"
+    },
+    {
+      "test": "Authentification JWT",
+      "details": "Token valide",
+      "timestamp": "2025-07-26T01:46:21.177602"
+    },
+    {
+      "test": "Modèle Patient",
+      "details": "Créé: TEST001",
+      "timestamp": "2025-07-26T01:46:21.192355"
+    },
+    {
+      "test": "Modèle DossierMedical",
+      "details": "Créé pour patient TEST001",
+      "timestamp": "2025-07-26T01:46:21.198516"
+    },
+    {
+      "test": "Modèle Alerte",
+      "details": "Créée: Test",
+      "timestamp": "2025-07-26T01:46:21.204237"
+    },
+    {
+      "test": "PatientSerializer",
+      "details": "Sérialisation/désérialisation OK",
+      "timestamp": "2025-07-26T01:46:21.257685"
+    },
+    {
+      "test": "Permissions",
+      "details": "Utilisateurs créés: ADMIN, MEDECIN",
+      "timestamp": "2025-07-26T01:46:26.334860"
+    },
+    {
+      "test": "Frontend Connectivité",
+      "details": "Frontend accessible",
+      "timestamp": "2025-07-26T01:46:28.487563"
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    {
+      "test": "API /api/tableau-bord/",
+      "warning": "Status inattendu: 404",
+      "details": "",
+      "timestamp": "2025-07-26T01:46:16.611916"
+    }
+  ]
+}

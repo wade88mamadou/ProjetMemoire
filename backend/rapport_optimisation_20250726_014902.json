@@ -1,0 +1,120 @@
+{
+  "optimisations": [
+    {
+      "nom": "select_related pour Patient",
+      "details": "Ajout de select_related pour profession et residence",
+      "impact": "Réduction de 95.8% du temps de requête",
+      "timestamp": "2025-07-26T01:49:01.791077"
+    },
+    {
+      "nom": "select_related et prefetch_related pour DossierMedical",
+      "details": "Optimisation des relations patient, analyses et alertes",
+      "impact": "Réduction de 31.2% du temps de requête",
+      "timestamp": "2025-07-26T01:49:01.908478"
+    },
+    {
+      "nom": "Cache pour statistiques",
+      "details": "Mise en cache des statistiques fréquemment utilisées",
+      "impact": "Réduction de 83.6% du temps de calcul",
+      "timestamp": "2025-07-26T01:49:01.987095"
+    },
+    {
+      "nom": "Vérification des index",
+      "details": "Trouvé 13 index existants",
+      "impact": "Base pour l'optimisation",
+      "timestamp": "2025-07-26T01:49:02.029129"
+    },
+    {
+      "nom": "Création d'index",
+      "details": "CREATE INDEX IF NOT EXISTS idx_patient_id_code ON api_patient(id_code);",
+      "impact": "Amélioration des performances de requête",
+      "timestamp": "2025-07-26T01:49:02.094485"
+    },
+    {
+      "nom": "Création d'index",
+      "details": "CREATE INDEX IF NOT EXISTS idx_patient_sexe ON api_patient(sexe);",
+      "impact": "Amélioration des performances de requête",
+      "timestamp": "2025-07-26T01:49:02.111394"
+    },
+    {
+      "nom": "Création d'index",
+      "details": "CREATE INDEX IF NOT EXISTS idx_alerte_gravite ON api_alerte(gravite);",
+      "impact": "Amélioration des performances de requête",
+      "timestamp": "2025-07-26T01:49:02.166250"
+    },
+    {
+      "nom": "Pagination optimisée",
+      "details": "Combinaison de select_related avec pagination",
+      "impact": "Réduction de -48.9% du temps de pagination",
+      "timestamp": "2025-07-26T01:49:02.309223"
+    },
+    {
+      "nom": "Analyse requêtes",
+      "details": "Aucune requête lente détectée",
+      "impact": "Performance satisfaisante",
+      "timestamp": "2025-07-26T01:49:02.354405"
+    }
+  ],
+  "tests_performance": [
+    {
+      "nom": "Requêtes Patients",
+      "temps_avant": 0.4435238838195801,
+      "temps_apres": 0.01883554458618164,
+      "amelioration": 95.75320624811184,
+      "timestamp": "2025-07-26T01:49:01.784519"
+    },
+    {
+      "nom": "Requêtes Dossiers",
+      "temps_avant": 0.06616830825805664,
+      "temps_apres": 0.04549574851989746,
+      "amelioration": 31.242388210283572,
+      "timestamp": "2025-07-26T01:49:01.903903"
+    },
+    {
+      "nom": "Cache Statistiques",
+      "temps_avant": 0.0576627254486084,
+      "temps_apres": 0.009457111358642578,
+      "amelioration": 83.59926402183126,
+      "timestamp": "2025-07-26T01:49:01.977730"
+    },
+    {
+      "nom": "Pagination",
+      "temps_avant": 0.03658866882324219,
+      "temps_apres": 0.054474830627441406,
+      "amelioration": -48.88442892144086,
+      "timestamp": "2025-07-26T01:49:02.281533"
+    }
+  ],
+  "recommandations": [
+    {
+      "nom": "Cache Redis",
+      "description": "Implémenter Redis pour le cache des statistiques et données fréquemment accédées",
+      "priorite": "Haute",
+      "timestamp": "2025-07-26T01:49:02.356997"
+    },
+    {
+      "nom": "CDN pour assets statiques",
+      "description": "Utiliser un CDN pour servir les fichiers CSS/JS du frontend",
+      "priorite": "Moyenne",
+      "timestamp": "2025-07-26T01:49:02.359332"
+    },
+    {
+      "nom": "Compression GZIP",
+      "description": "Activer la compression GZIP pour réduire la taille des réponses API",
+      "priorite": "Haute",
+      "timestamp": "2025-07-26T01:49:02.360939"
+    },
+    {
+      "nom": "Database connection pooling",
+      "description": "Configurer le pooling de connexions pour PostgreSQL",
+      "priorite": "Moyenne",
+      "timestamp": "2025-07-26T01:49:02.368684"
+    },
+    {
+      "nom": "Monitoring des performances",
+      "description": "Implémenter APM (Application Performance Monitoring)",
+      "priorite": "Basse",
+      "timestamp": "2025-07-26T01:49:02.371267"
+    }
+  ]
+}

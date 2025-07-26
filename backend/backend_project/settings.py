@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
-    'axes',  # Protection contre les attaques par force brute
+    # 'axes',  # Protection contre les attaques par force brute - désactivé pour le développement
     'api',
 ]
 
@@ -362,7 +362,7 @@ CACHES = {
 # Configuration des sessions - Politique de sécurité stricte
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
-SESSION_COOKIE_AGE = 60  # 1 minute (60 secondes)
+SESSION_COOKIE_AGE = 120  # 2 minutes pour assurer la sécurité
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Strict'  
