@@ -56,7 +56,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'api.middleware.SessionSecurityMiddleware',  # Surveillance de l'activité et déconnexion automatique
+    # 'api.middleware.SessionSecurityMiddleware',  # Désactivé pour test durée session
     'api.middleware.JWTSecurityMiddleware',      # Validation stricte des tokens JWT
     # 'api.middleware.SecurityMiddleware',  # Middleware de sécurité personnalisé - temporairement désactivé
     # 'api.middleware.AuditMiddleware',     # Middleware d'audit - temporairement désactivé
@@ -193,8 +193,8 @@ REST_FRAMEWORK = {
 
 # JWT Settings - Politique de sécurité stricte pour données médicales
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),  # 1 minute d'inactivité
-    'REFRESH_TOKEN_LIFETIME': timedelta(minutes=3),  # 3 minutes pour refresh
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),  # 1 heure
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # 7 jours
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
@@ -215,8 +215,8 @@ SIMPLE_JWT = {
     'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
     'JTI_CLAIM': 'jti',
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=1),  # 1 minute
-    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(minutes=2),  # 2 minutes
+    'SLIDING_TOKEN_LIFETIME': timedelta(hours=1),  # 1 heure
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(hours=2),  # 2 heures
 }
 
 # CORS configuration pour la communication avec React
@@ -360,10 +360,10 @@ CACHES = {
 }
 
 # Configuration des sessions - Politique de sécurité stricte
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_CACHE_ALIAS = 'default'
-SESSION_COOKIE_AGE = 120  # 2 minutes pour assurer la sécurité
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_AGE = 3600  # 1 heure (3600 secondes)
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Strict'  
 SESSION_COOKIE_SECURE = not DEBUG  # HTTPS en production

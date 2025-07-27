@@ -127,8 +127,8 @@ class SessionSecurityMiddleware:
     
     def __init__(self, get_response):
         self.get_response = get_response
-        self.session_timeout = 60  # 1 minute en secondes
-        self.warning_time = 30     # 30 secondes avant expiration
+        self.session_timeout = 3600  # 1 heure en secondes
+        self.warning_time = 3000     # 50 minutes avant expiration
         
     def __call__(self, request):
         # Ignorer les requêtes non authentifiées

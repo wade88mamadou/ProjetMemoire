@@ -1,6 +1,6 @@
 from .models import Acces
 from django.utils import timezone
-
+from .services import verifier_et_declencher_alerte
 def log_audit(user, type_acces, donnees_concernees, regle=None, statut=None):
     """
     Enregistre un accès (audit) dans la table Acces.
@@ -18,7 +18,8 @@ def log_audit(user, type_acces, donnees_concernees, regle=None, statut=None):
         regle=regle
         # statut=statut  # <-- supprimé car non supporté par le modèle
     )
-
+    # Déclenche une alerte si la règle le demande
+    verifier_et_declencher_alerte(type_acces, user, donnees_concernees)
 class AuditAccessMixin:
     audit_model_name = None  # À surcharger dans le ViewSet si besoin
 

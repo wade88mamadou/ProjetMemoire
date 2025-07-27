@@ -1348,7 +1348,7 @@ def mes_rapports(request):
             'rapports': serializer.data,
             'total_rapports': rapports.count()
         })
-        except Exception as e:
+    except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Détection seuil médical
@@ -1420,6 +1420,7 @@ def signaler_suppression_accidentelle(request):
 def signaler_violation_donnees(request):
     data = request.data
     utilisateur = request.user
+    cible = data.get('cible')
     details = data.get('details')
     alerte = Alerte.objects.create(
         typeAlerte="Violation de données",
@@ -1430,6 +1431,7 @@ def signaler_violation_donnees(request):
         donnees_concernees=details,
         notifie_cdp=True
     )
+    alerte = ConformiteAlertService.alerte_acces_non_autorise(utilisateur, cible)
     return Response(AlerteSerializer(alerte).data)
 
 # Lister toutes les alertes critiques

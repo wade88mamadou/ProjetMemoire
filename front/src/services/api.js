@@ -211,6 +211,64 @@ export const parametreConformiteService = {
   deleteParametre: (id) => api.delete(`/parametres-conformite/${id}/`),
 };
 
+// === NOUVEAU SYSTÈME D'ALERTES DE CONFORMITÉ ===
+
+// Service pour les types d'alertes de conformité
+export const typeAlerteConformiteService = {
+  getTypes: () => api.get('/types-alertes-conformite/'),
+  getType: (id) => api.get(`/types-alertes-conformite/${id}/`),
+  createType: (data) => api.post('/types-alertes-conformite/', data),
+  updateType: (id, data) => api.put(`/types-alertes-conformite/${id}/`, data),
+  deleteType: (id) => api.delete(`/types-alertes-conformite/${id}/`),
+};
+
+// Service pour les alertes de conformité
+export const alerteConformiteService = {
+  getAlertes: () => api.get('/alertes-conformite/'),
+  getAlerte: (id) => api.get(`/alertes-conformite/${id}/`),
+  createAlerte: (data) => api.post('/alertes-conformite/', data),
+  updateAlerte: (id, data) => api.put(`/alertes-conformite/${id}/`, data),
+  deleteAlerte: (id) => api.delete(`/alertes-conformite/${id}/`),
+  getAlertesCritiques: () => api.get('/conformite/alertes-critiques/'),
+  executerSurveillance: () => api.post('/conformite/surveillance/'),
+};
+
+// Service pour les règles d'alertes de conformité
+export const regleAlerteConformiteService = {
+  getRegles: () => api.get('/regles-alertes-conformite/'),
+  getRegle: (id) => api.get(`/regles-alertes-conformite/${id}/`),
+  createRegle: (data) => api.post('/regles-alertes-conformite/', data),
+  updateRegle: (id, data) => api.put(`/regles-alertes-conformite/${id}/`, data),
+  deleteRegle: (id) => api.delete(`/regles-alertes-conformite/${id}/`),
+};
+
+// Service pour les notifications de conformité
+export const notificationConformiteService = {
+  getNotifications: () => api.get('/notifications-conformite/'),
+  getNotification: (id) => api.get(`/notifications-conformite/${id}/`),
+  createNotification: (data) => api.post('/notifications-conformite/', data),
+  updateNotification: (id, data) => api.put(`/notifications-conformite/${id}/`, data),
+  deleteNotification: (id) => api.delete(`/notifications-conformite/${id}/`),
+};
+
+// Service pour l'audit de conformité
+export const auditConformiteService = {
+  getAudits: () => api.get('/audit-conformite/'),
+  getAudit: (id) => api.get(`/audit-conformite/${id}/`),
+  createAudit: (data) => api.post('/audit-conformite/', data),
+  updateAudit: (id, data) => api.put(`/audit-conformite/${id}/`, data),
+  deleteAudit: (id) => api.delete(`/audit-conformite/${id}/`),
+};
+
+// Service pour les statistiques et configuration de conformité
+export const conformiteService = {
+  getStatistiques: () => api.get('/conformite/statistiques-detaillees/'),
+  getConfiguration: () => api.get('/conformite/configuration/'),
+  configurerAlertes: (data) => api.post('/conformite/configurer/', data),
+  genererRapport: () => api.get('/conformite/rapport/'),
+  initialiserTypes: () => api.post('/conformite/initialiser-types-alertes/'),
+};
+
 // Service pour l'audit des accès
 export const accesService = {
   getAcces: async () => {

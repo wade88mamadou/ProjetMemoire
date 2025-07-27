@@ -26,7 +26,6 @@ from .services_conformite import ServiceAlertesConformite
 
 class TypeAlerteConformiteViewSet(viewsets.ModelViewSet):
     """ViewSet pour les types d'alertes de conformité"""
-    queryset = TypeAlerteConformite.objects.all()
     serializer_class = TypeAlerteConformiteSerializer
     permission_classes = [IsAdminUser]
     
@@ -102,7 +101,6 @@ class AlerteConformiteViewSet(viewsets.ModelViewSet):
 
 class RegleAlerteConformiteViewSet(viewsets.ModelViewSet):
     """ViewSet pour les règles d'alertes de conformité"""
-    queryset = RegleAlerteConformite.objects.all()
     serializer_class = RegleAlerteConformiteSerializer
     permission_classes = [IsAdminUser]
     
@@ -364,3 +362,4 @@ def rapport_conformite(request):
         return Response({
             'error': f'Erreur lors de la génération du rapport: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+

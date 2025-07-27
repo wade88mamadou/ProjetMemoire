@@ -1,6 +1,7 @@
 from django.utils import timezone
 from .models import ParametreConformite, Alerte, DossierMedical, Utilisateur
 import logging
+from .models import RegleConformite, ParametreConformite, Alerte
 
 logger = logging.getLogger(__name__)
 
@@ -353,4 +354,52 @@ class ConformiteAlertService:
             utilisateur=utilisateur,
             donnees_concernees=f"{objet_supprime}",
             norme_concernee="CDP"
+        )   
+
+
+
+def verifier_et_declencher_alerte(type_acces, utilisateur, donnees_concernees, extra=None):
+    """
+    Vérifie la configuration des règles de sécurité et déclenche une alerte si besoin.
+    type_acces: ex: 'CONSULTATION', 'SUPPRESSION', 'EXPORT', etc.
+    utilisateur: Utilisateur concerné
+    donnees_concernees: description ou objet concerné
+    extra: dict, infos complémentaires (ex: nombre de tentatives)
+    """
+    # from .models import RegleConformite, ParametreConformite, Alerte
+
+    # 1. Chercher la règle active correspondante
+    regle = RegleConformite.objects.filter(
+        nomRegle__iexact=type_acces,
+        is_active=True
+    ).first()
+    if not regle:
+        return None  # Pas de règle active pour cet événement
+
+    # 2. Chercher le seuil associé (si besoin)
+    param = ParametreConformite.objects.filter(regle=regle).first()
+    seuil_min = getattr(param, 'seuilMin', None)
+    seuil_max = getattr(param, 'seuilMax', None)
+
+    # 3. Vérifier le seuil (exemple pour nombre de tentatives)
+    declencher = True
+    if seuil_min is not None and extra and 'valeur' in extra:
+        if extra['valeur'] < seuil_min:
+            declencher = False
+    if seuil_max is not None and extra and 'valeur' in extra:
+        if extra['valeur'] > seuil_max:
+            declencher = True
+
+    if declencher:
+        # 4. Déclencher l'alerte selon le type d'accès
+        return Alerte.objects.create(
+            typeAlerte=type_acces,
+            message=f"Alerte déclenchée pour {type_acces} par {utilisateur.username}",
+            dateAlerte=timezone.now().date(),
+            gravite="warning",
+            notifie_cdp=True,
+            utilisateur=utilisateur,
+            donnees_concernees=str(donnees_concernees),
+            norme_concernee="SECURITE"
         )
+    return None
